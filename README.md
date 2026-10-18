@@ -1,5 +1,7 @@
-# cpp-8-v2 — web học độc lập
+# cpp-8-v3 — web học C++ lớp 8 (bản V3)
 
-Học bằng họ tên/lớp, không đăng nhập; các bài chọn tự do, trong bài hoàn thành chặng trước để mở chặng sau. Tiến độ, XP và bản nháp lưu trên trình duyệt của từng người học. Không có đăng nhập hoặc nhập/xuất hồ sơ.
+Học bằng họ tên và lớp, không đăng nhập. Tiến độ lưu trên trình duyệt của từng học sinh (khoá riêng `cpp-8-v3`, không lẫn với bản v2).
 
-Nguồn hiện hành: thư mục `Grade 11 - MOET/Standalone_Rollback/authoring`. Dựng bằng `build_standalone.py`, kiểm tra trước phát hành. Không chạy script cloud/gate cũ. SQL dự án lưu trên máy và xuất sản phẩm để nộp Canvas. Chứng chỉ ghi nhận tự học.
+Mỗi bài là một Đảo C++ gồm Chặng 1, Chặng 2 và Checkpoint. Trước mỗi trạm có một trò chơi ngắn rút từ 10 trò. Mỗi chặng có 6 tab: Bối cảnh → Đoán rồi chạy → Kiểm chứng → Ghi nhớ → Luyện tập → Phản tư.
+
+Nội dung bài học được soạn ở `99. Lưu trữ/_Nguon_ChuanMoi/<bai>/lesson.js` (thư mục khoá V2), kiểm bằng `kiem_tra.cjs`, đóng gói bằng `dong_goi.cjs` vào `lessons/`. Đáp án mẫu `_kiem_tra/dap_an_*.js` chỉ giữ trên máy thầy, không đăng.
