@@ -1,0 +1,22 @@
+/* Identical text metrics keep the highlighted layer aligned with the native caret. */
+.cpp-color-editor{position:relative;flex:1;min-width:0;background:#0f1725;isolation:isolate}
+.cpp-color-editor .code-editor,.cpp-color-layer{
+ box-sizing:border-box!important;width:100%;margin:0!important;border:0!important;padding:16px!important;
+ font-family:"Cascadia Code","SFMono-Regular",Consolas,monospace!important;
+ font-size:.88rem!important;line-height:1.5!important;letter-spacing:normal!important;
+ font-weight:400!important;font-style:normal!important;font-variant-ligatures:none;tab-size:4;
+ white-space:pre!important;word-break:normal!important;overflow-wrap:normal!important;text-align:left;
+}
+.cpp-color-layer{position:absolute;inset:0;height:100%;overflow:hidden;pointer-events:none;z-index:0;color:#edf6ff;background:transparent}
+.cpp-color-editor .code-editor{position:relative;z-index:1;background:transparent!important;color:transparent!important;-webkit-text-fill-color:transparent;caret-color:#fff;overflow:auto!important}
+.cpp-color-editor .code-editor::selection{background:rgba(90,150,255,.35)}
+.cpp-color-editor:focus-within{outline:2px solid #86d9fb;outline-offset:-2px}
+.cpp-syntax .cpp-keyword{color:#ff9cc4}
+.cpp-syntax .cpp-string{color:#b3e6a5}
+.cpp-syntax .cpp-number{color:#e6b5ff}
+.cpp-syntax .cpp-function{color:#86d9fb}
+.cpp-syntax .cpp-directive{color:#ffd38b}
+.cpp-syntax .cpp-comment{color:#91a0b6}
+.cpp-syntax .cpp-token{font-weight:inherit;font-style:inherit}
+@media(forced-colors:active){.cpp-color-layer{display:none}.cpp-color-editor .code-editor{color:CanvasText!important;-webkit-text-fill-color:CanvasText;caret-color:CanvasText}}
+@media print{.cpp-color-layer{display:none}.cpp-color-editor .code-editor{color:#000!important;-webkit-text-fill-color:#000}}

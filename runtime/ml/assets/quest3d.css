@@ -1,0 +1,142 @@
+/* Game quest 3D — lớp vỏ quanh trang bài học (app.js chạy trong khung nhúng ?nhung=1). */
+:root {
+  --q-nen: #0B1526;
+  --q-the: rgba(11, 21, 38, 0.82);
+  --q-vien: rgba(255, 255, 255, 0.14);
+  --q-chu: #F1F5F9;
+  --q-chu-phu: #B6C4D6;
+  --q-chinh: #00599C;
+  --q-tuoi: #38BDF8;
+  --q-vang: #FBBF24;
+  --q-xanh-la: #22C55E;
+  --q-do: #F87171;
+  --q-go: max(16px, env(safe-area-inset-left));
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--q-nen); color: var(--q-chu);
+  font-family: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+button { font: inherit; }
+#quest { position: fixed; inset: 0; }
+#quest canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+
+/* ---------- HUD ---------- */
+.q-hud { position: fixed; top: max(12px, env(safe-area-inset-top)); left: var(--q-go); right: var(--q-go);
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; pointer-events: none; z-index: 5; }
+.q-the { background: var(--q-the); border: 1px solid var(--q-vien); border-radius: 14px; backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
+.q-tieu-de { padding: 10px 14px; pointer-events: auto; max-width: min(420px, 62vw); }
+.q-tieu-de .q-nho { font-size: 12px; color: var(--q-tuoi); font-weight: 600; letter-spacing: .02em; }
+.q-tieu-de .q-lon { font-size: 16px; font-weight: 700; line-height: 1.25; }
+.q-khoa-hang { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.q-khoa { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 700;
+  background: rgba(255, 255, 255, 0.08); color: var(--q-chu-phu); border: 1px solid var(--q-vien); }
+.q-khoa.xong { background: var(--q-xanh-la); color: #052e12; border-color: transparent; }
+.q-khoa.mo { background: var(--q-chinh); color: #fff; border-color: var(--q-tuoi); }
+.q-khoa.cuoi { width: auto; padding: 0 8px; }
+.q-nut-hang { display: flex; gap: 8px; pointer-events: auto; }
+.q-nut { min-width: 44px; height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--q-vien);
+  background: var(--q-the); color: var(--q-chu); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 600; font-size: 14px; }
+.q-nut:hover, .q-nut:focus-visible { border-color: var(--q-tuoi); outline: none; }
+.q-nut svg { width: 20px; height: 20px; }
+
+.q-menu { position: fixed; top: calc(max(12px, env(safe-area-inset-top)) + 54px); right: var(--q-go); z-index: 6;
+  padding: 8px; min-width: 250px; display: none; }
+.q-menu.hien { display: block; }
+.q-menu h4 { margin: 6px 8px; font-size: 12px; color: var(--q-chu-phu); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.q-menu button, .q-menu a { display: flex; width: 100%; align-items: center; gap: 8px; text-align: left; padding: 9px 10px; border: 0;
+  background: none; color: var(--q-chu); border-radius: 8px; cursor: pointer; text-decoration: none; font-size: 14px; }
+.q-menu button:hover:not(:disabled), .q-menu a:hover { background: rgba(255, 255, 255, 0.08); }
+.q-menu button:disabled { color: #64748B; cursor: not-allowed; }
+.q-menu .chon { color: var(--q-tuoi); font-weight: 700; }
+
+/* ---------- lời nhắc ở trạm ---------- */
+.q-goi-y { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  width: min(560px, calc(100vw - 32px)); padding: 14px 16px; z-index: 4; display: none; }
+.q-goi-y.hien { display: block; animation: q-len .25s ease-out; }
+.q-goi-y .q-nho { font-size: 12px; font-weight: 700; color: var(--q-tuoi); }
+.q-goi-y .q-lon { font-size: 17px; font-weight: 700; margin: 2px 0 6px; }
+.q-goi-y p { margin: 0 0 10px; color: var(--q-chu-phu); font-size: 14px; line-height: 1.45; }
+.q-goi-y .q-hanh-dong { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.q-vao { height: 44px; padding: 0 18px; border-radius: 12px; border: 0; background: var(--q-vang); color: #1f1300;
+  font-weight: 700; cursor: pointer; font-size: 15px; }
+.q-vao:disabled { background: #475569; color: #CBD5E1; cursor: not-allowed; }
+.q-phim { font-size: 13px; color: var(--q-chu-phu); }
+.q-phim kbd { display: inline-block; min-width: 22px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--q-vien);
+  background: rgba(255, 255, 255, 0.08); font-family: inherit; font-size: 12px; color: var(--q-chu); text-align: center; }
+@keyframes q-len { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ---------- cần điều khiển cảm ứng ---------- */
+.q-can { position: fixed; width: 128px; height: 128px; margin: -64px 0 0 -64px; border-radius: 50%; z-index: 3;
+  background: rgba(11, 21, 38, 0.35); border: 2px solid rgba(255, 255, 255, 0.35); display: none; pointer-events: none; }
+.q-can.hien { display: block; }
+.q-can i { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85); box-shadow: 0 4px 12px rgba(0, 0, 0, .3); }
+.q-can-goi-y { position: fixed; left: var(--q-go); bottom: max(24px, env(safe-area-inset-bottom)); z-index: 3; font-size: 13px;
+  color: rgba(255, 255, 255, 0.9); text-shadow: 0 1px 3px rgba(0, 0, 0, .6); pointer-events: none; }
+
+/* ---------- màn đầu ---------- */
+.q-man { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px;
+  background: radial-gradient(ellipse at 50% 30%, rgba(0, 89, 156, 0.55), rgba(11, 21, 38, 0.92)); }
+.q-man.an { display: none; }
+.q-man .q-the { width: min(560px, 100%); padding: 24px; max-height: calc(100vh - 32px); overflow: auto; }
+.q-intro { display:flex;justify-content:flex-start;align-items:center;padding:clamp(18px,4vw,60px);
+  background:linear-gradient(90deg,rgba(5,15,31,.92),rgba(5,15,31,.58) 50%,rgba(5,15,31,.12)); }
+.q-intro .q-the { width:min(500px,46vw);border-color:var(--q-tuoi);box-shadow:0 20px 65px rgba(0,0,0,.48); }
+.q-man .q-nho { color: var(--q-tuoi); font-weight: 700; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+.q-man h1 { margin: 6px 0 4px; font-size: clamp(26px, 6vw, 36px); line-height: 1.15; }
+.q-man .q-cau { color: var(--q-chu-phu); margin: 0 0 16px; line-height: 1.5; }
+.q-man ul { margin: 0 0 18px; padding-left: 18px; color: var(--q-chu-phu); line-height: 1.6; font-size: 14px; }
+.q-man .q-hang { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.q-man .q-vao { height: 52px; padding: 0 26px; font-size: 17px; }
+.q-lien-ket { color: var(--q-chu); font-weight: 600; font-size: 14px; }
+.q-dang-tai { color: var(--q-chu-phu); font-size: 13px; }
+
+/* ---------- khung bài học (iframe) ---------- */
+.q-khung { position: fixed; inset: 0; z-index: 15; display: none; background: rgba(5, 10, 20, 0.6); padding: 16px; }
+.q-khung.hien { display: flex; justify-content: center; align-items: center; }
+.q-khung-trong { width: min(980px, 100%); height: min(92vh, 100%); display: flex; flex-direction: column; overflow: hidden;
+  background: #F5F8FB; border-radius: 16px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45); }
+.q-khung-dau { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 18px; background: var(--q-nen); color: var(--q-chu); }
+.q-khung-dau b { flex: 1; font-size: 15px; line-height: 1.3; }
+.q-khung iframe { flex: 1; width: 100%; border: 0; background: #F5F8FB; }
+@media (max-width: 640px) {
+  .q-intro { justify-content:center;align-items:center;padding:16px;background:rgba(5,15,31,.72); }
+  .q-intro .q-the { width:100%; }
+  .q-thong-bao { top: calc(max(12px, env(safe-area-inset-top)) + 180px); }
+  .q-khung { padding: 0; }
+  .q-khung-trong { height: 100%; border-radius: 0; }
+  .q-tieu-de .q-lon { font-size: 14px; }
+  .q-nut .q-chu-nut { display: none; }
+}
+
+/* ---------- thông báo ---------- */
+.q-thong-bao { position: fixed; top: 96px; left: 50%; transform: translateX(-50%); z-index: 12; padding: 12px 18px;
+  font-weight: 600; font-size: 15px; max-width: calc(100vw - 32px); text-align: center; display: none; }
+.q-thong-bao.hien { display: block; animation: q-toast .3s ease-out; }
+.q-thong-bao.tot { border-color: var(--q-xanh-la); }
+.q-thong-bao.xau { border-color: var(--q-do); }
+@keyframes q-toast { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.q-man-chuyen { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 11; transition: opacity .25s; }
+.q-man-chuyen.hien { opacity: .85; }
+.q-loi { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; z-index: 30; background: var(--q-nen); }
+
+/* Focus mode: a station uses the whole available viewport. */
+.q-khung{padding:0!important;background:#f5f8fb!important}.q-khung-trong{width:100%!important;max-width:none!important;height:100%!important;max-height:none!important;border-radius:0!important;box-shadow:none!important}.q-khung-dau{min-height:44px;padding:5px 12px!important;flex-shrink:0}.q-khung-dau b{font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.q-khung iframe{width:100%!important;min-height:0!important;flex:1;border:0}.q-khung-dau .q-nut{min-height:36px;font-size:12px}.q-khung.hien~.q-hud{visibility:hidden}@media(max-width:650px){.q-khung-dau b{max-width:45%}.q-khung-dau .q-chu-nut{display:inline!important;font-size:11px}}
+/* Optional game layer. Learning stays accessible through the primary action. */
+.q-mini{position:fixed;inset:0;z-index:1500;display:grid;place-items:center;background:#081326e8;padding:16px;overflow:auto}.q-mini-card{width:min(650px,100%);max-height:calc(100dvh - 32px);overflow:auto;background:#16304b;border:1px solid #698ba8;color:#eaf3ff;border-radius:22px;padding:24px}.q-mini h2{color:#eaf3ff;line-height:1.3;font-size:clamp(20px,3vw,27px);margin:10px 0}.q-mini p{font-size:14px;line-height:1.6}.q-mini canvas{display:block;width:100%;height:auto;border:1px solid #597693;border-radius:12px;touch-action:manipulation}.q-mini-controls,.q-mini-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.q-mini-controls button{min-width:44px;min-height:44px}.q-mini-controls label{display:flex;align-items:center;gap:6px}.q-mini-note{font-size:12px!important;color:#b9cdda}.q-mini-status{min-height:22px;color:#b7f0d5}.q-mini button:focus-visible,.q-mini canvas:focus-visible,.q-mini input:focus-visible{outline:3px solid #ffd07a;outline-offset:3px}.q-mini-enter{flex:1}.q-mini label input[type=checkbox]{width:18px;height:18px;vertical-align:middle}@media(max-width:500px){.q-mini{padding:8px}.q-mini-card{padding:16px;max-height:calc(100dvh - 16px)}.q-mini-actions .q-nut{min-height:44px;padding:8px}}
+
+/* A single full-screen game before the lesson, without post-win replay. */
+.q-game{position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;background:#edf4ef;color:#173247;font:16px system-ui;isolation:isolate}
+.q-game header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 16px;background:#fff;box-shadow:0 2px 12px #102c4320;z-index:2}
+.q-game header strong{font-size:20px}.q-game header small{display:block;max-width:55vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#526978;font-size:13px}
+.q-game nav,.game-controls{display:flex;gap:10px;justify-content:center;align-items:center}.q-game button{border:1px solid #a6bbc6;border-radius:12px;background:#fff;color:#173247;min-width:48px;min-height:48px;padding:10px 18px;font:700 17px system-ui;cursor:pointer}.q-game button:focus-visible{outline:3px solid #da8a00;outline-offset:2px}.q-game button:disabled{opacity:.55;cursor:default}.q-game .game-enter,.q-game .game-play{background:#116e6b;color:#fff;border-color:#116e6b}
+.game-scene{position:relative;flex:1;min-height:0;overflow:hidden}.game-scene canvas{display:block;width:100%;height:100%;touch-action:none}.game-start{position:absolute;z-index:2;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,88%);box-sizing:border-box;text-align:center;background:#fffffff2;border:1px solid #ccd9d4;border-radius:22px;padding:24px;box-shadow:0 12px 44px #17324735}.game-start[hidden]{display:none}.game-start h2{margin:0 0 12px;font-size:24px}.game-start p{line-height:1.5;margin:0 0 18px}.game-status{position:absolute;top:12px;left:50%;transform:translateX(-50%);margin:0;padding:8px 16px;border-radius:12px;background:#fffffff0;font-weight:700;text-align:center;max-width:80%;pointer-events:none}.game-controls{padding:10px;background:#fff;box-shadow:0 -2px 12px #102c4320;z-index:2}.game-controls:empty{display:none}
+@media(max-width:600px){.q-game header{padding:8px;gap:6px}.q-game header strong{font-size:15px}.q-game header small{max-width:45vw;font-size:11px}.q-game nav{gap:5px}.q-game nav button{padding:8px;min-width:44px;font-size:14px}.game-controls{gap:6px;padding:8px}.game-controls button{padding:8px 12px;min-width:46px}.game-start{padding:20px}.game-start h2{font-size:22px}}
+
+.q-student{font-size:14px;font-weight:700;color:inherit;padding:8px 10px;border-bottom:1px solid #9be0cd44}.q-end-session{color:#ffd792!important}.game-controls{flex-wrap:wrap}
+
+/* Arcade: one full-window view, readable controls and a quiet countdown. */
+.q-arcade,.q-arcade *{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.q-arcade{background:#203c49}.q-arcade header{background:#f9fcf8;border-bottom:1px solid #d2dfd8;box-shadow:none;flex-shrink:0}.q-arcade header strong{font-size:18px}.q-arcade header small{font-size:12px}.q-arcade .game-hud{position:absolute;z-index:1;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:center;gap:8px;pointer-events:none}.q-arcade .game-status{position:static;transform:none;max-width:calc(100% - 82px);padding:8px 14px;font-size:15px;box-shadow:0 3px 12px #17324715}.game-timer{padding:9px 12px;border-radius:12px;background:#173d4ced;color:#fff;font-weight:800;font-variant-numeric:tabular-nums;min-width:48px;text-align:center}.game-timer.urgent{background:#995334}.q-arcade .game-start{background:linear-gradient(150deg,#fffffff5,#f2f7ecf7);border:1px solid #ffffff;box-shadow:0 20px 70px #19384b45;max-height:calc(100% - 80px);overflow:auto;padding:28px;width:min(430px,88%)}.q-arcade .game-start h2{font-size:27px;line-height:1.2}.q-arcade .game-goal{font-weight:800;color:#216858;margin:8px 0 12px;font-size:18px}.q-arcade .game-hint{font-size:15px;color:#425e6b}.q-arcade .game-play{min-width:170px;box-shadow:0 5px 15px #21685820}.q-arcade .game-controls{background:#f8fbf7;padding:8px;flex-shrink:0;box-shadow:none}.q-arcade .game-controls button{min-height:46px;min-width:50px;padding:8px 18px;font-size:16px;touch-action:manipulation}.game-power{width:90px;height:16px;accent-color:#d79740}.game-power.ready{accent-color:#238958}@media(max-width:600px){.q-arcade header strong{font-size:14px}.q-arcade header small{max-width:36vw;font-size:10px}.q-arcade .game-hud{top:8px;left:5px;right:5px;gap:5px}.q-arcade .game-status{font-size:12px;padding:7px 9px}.game-timer{font-size:13px;padding:7px 9px;min-width:40px}.q-arcade .game-start{padding:20px}.q-arcade .game-start h2{font-size:22px}.q-arcade .game-controls{gap:5px}.q-arcade .game-controls button{padding:8px 12px;min-width:44px;font-size:14px}.game-power{width:50px}}
+.q-arcade .game-level{display:inline-block;margin:6px 0 0;padding:3px 11px;border-radius:999px;background:#e3f4f1;color:#0f5f52;font-weight:700;font-size:13px}.q-arcade .game-controls{flex-wrap:wrap;justify-content:center}
