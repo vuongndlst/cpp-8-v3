@@ -82,19 +82,58 @@
     docThem: (links, tieuDe = "📚 Đọc thêm trên W3Schools") => `
       <div class="read-more-box"><div><strong>${tieuDe}</strong><span>Mở ở tab mới, đọc xong quay lại.</span></div>
       <div class="resource-links">${links.map(([slug, label]) => `<a href="${W3(slug)}" target="_blank" rel="noopener">${label} ↗</a>`).join("")}</div></div>`,
-    // Chặng chứng chỉ: rút n câu từ ngân hàng, cố định theo tên + lớp (mở lại vẫn ra đúng bộ câu đó).
-    rut: (pool, n) => {
-      const p = (window.PortalCloud && window.PortalCloud.profile) || {};
+    // Góp ý 19/10: xáo thứ tự phương án để đáp án đúng chia đều A/B/C/D (không dồn vào A).
+    // Cố định theo mã câu: mọi học sinh, máy kiểm và slide thấy cùng một thứ tự. c._goc[i] = vị trí cũ của phương án i.
+    // Giữ thứ tự khi các phương án là dãy có thứ tự tự nhiên (Dòng 1, Dòng 2…) hoặc câu đặt giuThuTu: true.
+    xao: (list, khoa = "") => {
       let s = 2166136261;
-      for (const ch of `${p.display_name || ""}|${p.class_label || ""}`) { s ^= ch.charCodeAt(0); s = Math.imul(s, 16777619); }
+      for (const ch of "xao|" + khoa) { s ^= ch.charCodeAt(0); s = Math.imul(s, 16777619); }
       const rnd = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-      const a = [...pool];
-      for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-      // Ưu tiên mỗi câu một dạng khác nhau (chọn màn hình, điền khuyết, kéo thả...), thiếu mới lấy trùng dạng.
-      const picked = [], used = new Set();
-      for (const q of a) if (picked.length < n && !used.has(q.type)) { picked.push(q); used.add(q.type); }
-      for (const q of a) if (picked.length < n && !picked.includes(q)) picked.push(q);
-      return picked;
+      const tron = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+      const chu = o => (typeof o === "string" ? o : o.text);
+      let hang = [];
+      for (const c of list) {
+        if (!(c.type === "choice" || c.type === "doanchay") || c._goc || c.giuThuTu || !Array.isArray(c.options) || c.options.length !== 4) continue;
+        const texts = c.options.map(chu);
+        const so = texts.map(t => (/^(Dòng\s*)?(\d+)$/.exec(String(t).trim()) || [])[2]);
+        if (so.every(x => x != null) && so.every((x, i) => !i || Number(x) > Number(so[i - 1]))) continue;
+        const dung = texts.indexOf(c.answer);
+        if (dung < 0) continue;
+        if (!hang.length) hang = tron([0, 1, 2, 3]);
+        const dich = hang.shift();
+        const sai = tron([0, 1, 2, 3].filter(i => i !== dung));
+        const goc = [];
+        for (let i = 0; i < 4; i++) goc.push(i === dich ? dung : sai.shift());
+        c._goc = goc;
+        c.options = goc.map(i => c.options[i]);
+      }
+      return list;
+    },
+    // Chặng chứng chỉ: rút n câu từ ngân hàng, cố định theo tên + lớp + lượt làm lại (mở lại vẫn ra đúng bộ câu đó;
+    // thua vì hết giờ thì bossTry tăng 1 và rút ra bộ câu khác).
+    luotBoss: () => {
+      try { return Number((window.CppCloud && window.CPP_LESSON_KEY && window.CppCloud.state(window.CPP_LESSON_KEY) || {}).bossTry) || 0; }
+      catch { return 0; }
+    },
+    rut: (pool, n, luot) => {
+      const p = (window.PortalCloud && window.PortalCloud.profile) || {};
+      if (luot == null) luot = window.KIT.luotBoss();
+      window.KIT.xao(pool, "boss");
+      const chon = k => {
+        let s = 2166136261;
+        for (const ch of `${p.display_name || ""}|${p.class_label || ""}${k ? "|" + k : ""}`) { s ^= ch.charCodeAt(0); s = Math.imul(s, 16777619); }
+        const rnd = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+        let a = [...pool];
+        for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+        // Lượt làm lại: ưu tiên câu chưa gặp ở lượt ngay trước, để bộ câu mới khác hẳn bộ cũ.
+        if (k > 0) { const cu = new Set(chon(k - 1).map(q => q.id)); a = [...a.filter(q => !cu.has(q.id)), ...a.filter(q => cu.has(q.id))]; }
+        // Ưu tiên mỗi câu một dạng khác nhau (chọn màn hình, điền khuyết, kéo thả...), thiếu mới lấy trùng dạng.
+        const picked = [], used = new Set();
+        for (const q of a) if (picked.length < n && !used.has(q.type)) { picked.push(q); used.add(q.type); }
+        for (const q of a) if (picked.length < n && !picked.includes(q)) picked.push(q);
+        return picked;
+      };
+      return chon(Math.min(luot, 20));
     },
     /* ---------- Chuẩn 2 (19/10/2026): khối trình bày dùng chung cho Bài 1–4 ---------- */
     boiCanh: (big, html) => `<div class="scene-card"><div class="scene-big">${big}</div>${html}</div>`,
@@ -104,6 +143,15 @@
     // Ghi nhớ: khung "Ghi vào vở" đúng 3 ý (trùng slide chốt), một lưu ý, rồi các bảng chi tiết không cần chép.
     ghiVo: y => `<div class="ghi-vo"><div class="ghi-vo-tieu">📒 Ghi vào vở</div><ol>${y.map(t => `<li>${t}</li>`).join("")}</ol></div>`,
     luuY: t => `<div class="luu-y"><b class="nhan">⚠ Lưu ý:</b> ${t}</div>`,
+    // Góp ý 19/10: bảng các kiểu dữ liệu thường gặp (Bài 2 Ghi nhớ, Bài 5 ôn tập).
+    kieuDuLieu: (so = "") => `<div class="ky-title">${so}Các kiểu dữ liệu thường gặp trong C++</div><table class="ky-table">
+      <tr><th>Kiểu</th><th>Lưu được gì</th><th>Ví dụ khai báo</th><th>Thường dùng cho</th></tr>
+      <tr><td><code>int</code></td><td>Số nguyên: không có phần thập phân, có thể âm</td><td><code>int soLy = 2;</code></td><td>số ly, số tiền, tuổi, số học sinh</td></tr>
+      <tr><td><code>double</code></td><td>Số thực: có phần thập phân, viết bằng dấu chấm</td><td><code>double diemTB = 8.5;</code></td><td>điểm trung bình, cân nặng, nhiệt độ</td></tr>
+      <tr><td><code>char</code></td><td>Một ký tự, đặt trong dấu nháy đơn <code>' '</code></td><td><code>char coLy = 'M';</code></td><td>cỡ ly S/M/L, xếp loại A/B/C</td></tr>
+      <tr><td><code>string</code></td><td>Chuỗi ký tự, đặt trong dấu ngoặc kép <code>" "</code></td><td><code>string tenMon = "Tra sua";</code></td><td>tên món, tên khách, lời nhắn</td></tr>
+      <tr><td><code>bool</code></td><td>Chỉ một trong hai giá trị: <code>true</code> (đúng) hoặc <code>false</code> (sai)</td><td><code>bool conHang = true;</code></td><td>còn hàng hay hết, đã trả tiền chưa</td></tr></table>
+      <div class="luu-y"><b class="nhan">⚠ Lưu ý:</b> số thực viết <code>8.5</code>, không viết <code>8,5</code>. Muốn dùng <code>string</code> thì thêm dòng <code>#include &lt;string&gt;</code> ở đầu chương trình. Các bài tính tiền trong khoá này dùng <code>int</code>.</div>`,
     chiTiet: `<p style="margin:18px 0 4px;color:var(--muted)">Các bảng dưới đây giải thích chi tiết hơn, dùng để đọc hiểu và tra lại khi làm bài. <strong>Không cần chép.</strong></p>`,
     timThem: links => `<div class="ky-title">Tìm hiểu thêm <small style="font-weight:600;color:var(--muted)">(không bắt buộc, mở ở tab mới)</small></div>
       <div class="tim-them">${links.map(([u, t]) => `<a href="${u}" target="_blank" rel="noopener">${t} ↗</a>`).join("")}</div>`,

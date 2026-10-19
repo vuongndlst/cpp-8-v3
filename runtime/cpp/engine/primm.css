@@ -307,3 +307,65 @@ body:has(.stage-page) .site-footer p { display: none !important; }
 .dk-nhan.t { background: #dcfce7; color: #166534; }
 .dk-nhan.f { background: #fee2e2; color: #991b1b; }
 .ghi-vo code { white-space: nowrap; }
+
+/* ===== BOSS 3D + hẹn giờ (góp ý thầy 19/10/2026) ===== */
+.boss-dock { position: sticky; top: 8px; z-index: 40; display: grid; grid-template-columns: 170px 1fr; gap: 14px; align-items: center;
+  margin: 0 0 18px; padding: 10px 16px 10px 10px; border-radius: 22px; border: 2px solid var(--ink);
+  background: linear-gradient(135deg, #fff8e7, #f4edff 55%, #e8f5ff); box-shadow: 0 8px 0 rgba(23,48,79,.12); }
+.boss-3d { position: relative; width: 170px; height: 150px; }
+.b3-canvas, .b3-canvas canvas { width: 100% !important; height: 100% !important; display: block; }
+.b3-fx { position: absolute; inset: 0; pointer-events: none; }
+.b3-so { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); font: 900 1.5rem/1 "Segoe UI", system-ui, sans-serif;
+  color: #ef4444; -webkit-text-stroke: 1.5px #fff; text-shadow: 0 3px 0 rgba(23,48,79,.35); animation: b3-bay 1.25s ease-out forwards; }
+@keyframes b3-bay { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.6); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.25); }
+  100% { opacity: 0; transform: translate(-50%, -70px) scale(1); } }
+.b3-sao { position: absolute; left: 50%; top: 45%; font-size: 1.3rem; animation: b3-no .85s ease-out forwards; }
+@keyframes b3-no { from { opacity: 1; transform: translate(-50%, -50%) scale(.4); } to { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.1) rotate(160deg); } }
+.boss-info { min-width: 0; }
+.boss-ten { font-weight: 900; font-size: 1.15rem; color: var(--ink); }
+.boss-dock .hp-label { display: flex; gap: 10px; align-items: baseline; margin: 2px 0 5px; font-weight: 800; font-size: .88rem; }
+.boss-cau { margin-left: auto; padding: 1px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: .78rem; }
+.boss-dock .hp-track { height: 18px; }
+.boss-dock .hp-bar { background: linear-gradient(90deg, #22c55e, #84cc16); transition: width .8s cubic-bezier(.2,1.4,.4,1); }
+.boss-dock .hp-bar.thap { background: linear-gradient(90deg, #f97316, #ef4444); }
+.boss-gio { display: inline-flex; gap: 6px; align-items: center; margin-top: 8px; padding: 3px 12px; border-radius: 999px;
+  background: #fff; border: 2px solid var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.boss-gio strong { font-size: 1.1rem; }
+.boss-gio.gap { background: #fee2e2; border-color: #dc2626; color: #b91c1c; animation: b3-nhip .9s ease-in-out infinite; }
+@keyframes b3-nhip { 50% { transform: scale(1.08); } }
+.b3-noi { position: relative; margin-top: 8px; padding: 8px 12px; border-radius: 14px; background: #fff; border: 2px solid var(--ink);
+  font-weight: 700; font-size: .92rem; line-height: 1.4; min-height: 1em; }
+.b3-noi:empty { display: none; }
+.b3-noi::before { content: ""; position: absolute; left: -9px; top: 12px; border: 8px solid transparent; border-right-color: var(--ink); border-left: 0; }
+.b3-noi.hien { animation: b3-noi .35s ease-out; }
+@keyframes b3-noi { from { transform: scale(.85); opacity: .2; } }
+/* Bản 2D dự phòng */
+.b3-2d { display: grid; place-items: center; }
+.b3-emoji { font-size: 5.2rem; line-height: 1; animation: wobble 2.4s ease-in-out infinite; }
+.b3-emoji.b3-hit { animation: b3-bep .7s ease-out; filter: brightness(1.6); }
+.b3-emoji.b3-treu { animation: b3-nhay .5s ease-in-out 2; }
+.b3-emoji.b3-gap { animation: wobble .8s ease-in-out infinite; }
+.b3-emoji.b3-thang { animation: none; transform: rotate(80deg) scale(.75); opacity: .7; transition: all 1s; }
+.b3-emoji.b3-thua { animation: b3-nhay .4s ease-in-out infinite; transform: scale(1.2); }
+@keyframes b3-bep { 30% { transform: scale(1.3, .65); } 60% { transform: scale(.9, 1.15); } }
+@keyframes b3-nhay { 50% { transform: translateY(-18px); } }
+/* Hết giờ: khung code bị phá */
+.challenge-card.bi-pha { animation: b3-rung .6s linear 2, b3-vo .5s 1.2s forwards; position: relative; }
+.challenge-card.da-pha { filter: grayscale(.9); opacity: .55; position: relative; }
+.challenge-card.bi-pha::after, .challenge-card.da-pha::after { content: "💥"; position: absolute; right: 14px; top: 10px; font-size: 2rem; }
+.challenge-card.bi-pha::before, .challenge-card.da-pha::before { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 2;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100' preserveAspectRatio='none'%3E%3Cpath d='M0 40 L40 46 L62 30 L90 52 L120 38 L150 60 L200 48 M90 52 L96 100 M62 30 L70 0 M150 60 L160 100' fill='none' stroke='%2317304f' stroke-width='1.6' stroke-linejoin='round' opacity='.55'/%3E%3C/svg%3E") center/100% 100% no-repeat; }
+@keyframes b3-rung { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-8px) rotate(-.6deg); } 40% { transform: translateX(8px) rotate(.6deg); }
+  60% { transform: translateX(-6px); } 80% { transform: translateX(6px); } }
+@keyframes b3-vo { to { filter: grayscale(.9); opacity: .55; transform: rotate(-.8deg); } }
+.boss-thua { margin: 0 0 18px; padding: 18px 20px; border-radius: 20px; border: 3px solid #dc2626; background: #fff5f5; text-align: center; }
+.boss-thua h3 { margin: 4px 0 6px; color: #b91c1c; }
+.boss-thua-icon { font-size: 2.6rem; animation: b3-nhip .9s ease-in-out infinite; }
+@media (max-width: 640px) {
+  .boss-dock { grid-template-columns: 96px 1fr; gap: 8px; padding: 6px 10px 6px 6px; top: 4px; border-radius: 16px; }
+  .boss-3d { width: 96px; height: 92px; }
+  .b3-emoji { font-size: 3.4rem; }
+  .boss-ten { font-size: .98rem; }
+  .b3-noi { font-size: .82rem; padding: 5px 9px; }
+}
+@media (prefers-reduced-motion: reduce) { .challenge-card.bi-pha, .boss-gio.gap, .boss-thua-icon, .b3-emoji { animation: none !important; } }

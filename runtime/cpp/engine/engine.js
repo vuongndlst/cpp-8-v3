@@ -11,6 +11,8 @@
 "use strict";
 
 const L = window.LESSON;
+// Góp ý 19/10: xáo phương án để đáp án đúng chia đều A/B/C/D (chặng chứng chỉ đã xáo trong KIT.rut).
+L.steps.forEach(s => { if (s.kind === "stage" && window.KIT?.xao) window.KIT.xao(s.challenges || [], L.id + "|" + s.id); });
 // Thẻ nhiệm vụ: test case khai báo một lần trong card, dùng cho cả hiển thị lẫn chấm.
 L.steps.forEach(s => (s.challenges || []).forEach(c => {
   if (c.card?.tests && !c.tests) c.tests = c.card.tests.map(t => ({ input: t.input || "", expected: t.expected }));
@@ -59,7 +61,7 @@ window.CPP = { stripComments, normalizeOutput }; // lesson.js / kit.js dùng tro
 
 /* ---------- lưu trạng thái ---------- */
 function freshState(student) {
-  return { student, active: STEPS[0].id, passed: {}, attempts: {}, drafts: {}, inputs: {}, gates: {},
+  return { student, active: STEPS[0].id, passed: {}, attempts: {}, drafts: {}, inputs: {}, gates: {}, xaoV: 1,
     xp: 0, combo: 0, stars: {}, startedAt: new Date().toISOString(), completedAt: null };
 }
 function save() {
@@ -68,7 +70,9 @@ function save() {
  if(state.completed)state.badge=isGold()?"gold":"silver";
  CppCloud.save(L.id,state);
 }
-function load(student){const remote={...CppCloud.state(L.id)},q=new URLSearchParams(location.search),steps=L.steps.filter(s=>s.kind!=='gate'&&(q.has('cuoi')||s.kind!=='boss')),index=q.has('cuoi')?steps.findIndex(s=>s.kind==='boss'):Number(q.get('chang'));if(q.has('chang')||q.has('cuoi'))remote.active=steps[index]?.id||steps[0].id;state={...freshState(student),...remote,student};const oldIndex=L.steps.findIndex(s=>s.id===state.active);if(oldIndex>=0&&L.steps[oldIndex].kind==='gate')state.active=L.steps.slice(oldIndex+1).find(s=>s.kind!=='gate')?.id||STEPS[0].id;for(const f of ["passed","attempts","drafts","inputs","gates","stars","waitingChoice"])if(!state[f]||typeof state[f]!=="object"||Array.isArray(state[f]))state[f]={};}
+function load(student){const remote={...CppCloud.state(L.id)},q=new URLSearchParams(location.search),steps=L.steps.filter(s=>s.kind!=='gate'&&(q.has('cuoi')||s.kind!=='boss')),index=q.has('cuoi')?steps.findIndex(s=>s.kind==='boss'):Number(q.get('chang'));if(q.has('chang')||q.has('cuoi'))remote.active=steps[index]?.id||steps[0].id;state={...freshState(student),...remote,student};const oldIndex=L.steps.findIndex(s=>s.id===state.active);if(oldIndex>=0&&L.steps[oldIndex].kind==='gate')state.active=L.steps.slice(oldIndex+1).find(s=>s.kind!=='gate')?.id||STEPS[0].id;for(const f of ["passed","attempts","drafts","inputs","gates","stars","waitingChoice"])if(!state[f]||typeof state[f]!=="object"||Array.isArray(state[f]))state[f]={};
+ // Bài đã làm trước khi xáo phương án: đổi chỉ số đã chọn sang thứ tự mới để ô đã chọn vẫn đúng.
+ if(!state.xaoV){for(const s of L.steps)for(const c of s.challenges||[])if(c._goc&&state.choices?.[c.id]!=null){const i=c._goc.indexOf(Number(state.choices[c.id]));if(i>=0)state.choices[c.id]=i;}state.xaoV=1;}}
 function selfStudy(){return Boolean(window.PORTAL_SELF_STUDY);}
 
 /* ---------- tiến độ ---------- */
@@ -313,7 +317,7 @@ function shell() {
       <button class="icon-button close-button" type="button" data-close>×</button>
       <p class="eyebrow">BOSS ĐÃ BỊ HẠ GỤC</p>
       <h2>Chứng chỉ Bài ${L.number} 🎓</h2>
-      <p>Lưu ảnh PNG rồi nộp lên Canvas cùng <strong>link Programiz bài cá nhân</strong> và ảnh chụp màn hình kết quả.</p>
+      <p>Lưu ảnh PNG rồi nộp lên Canvas.</p>
       <canvas id="certCanvas" width="1600" height="1131" aria-label="Chứng chỉ"></canvas>
       <div class="certificate-actions">
         <button id="savePng" class="primary-button" type="button">⬇ Lưu PNG</button>
@@ -415,10 +419,9 @@ function renderStage(step) {
       <div class="stage-kicker">${esc(step.kicker)}</div>
       <h2>${esc(step.title)}</h2>
       ${step.objectives ? `<div class="stage-objectives">${step.objectives.map(o => `<span>🎯 ${esc(o)}</span>`).join("")}</div>` : ""}
-      ${isBoss ? bossBar(step) : ""}
     </header>
     <div class="lesson-body">
-      ${step.lesson || ""}
+      ${isBoss ? bossDock(step) : (step.lesson || "")}
       <section class="challenge-section">
         <h3 class="section-heading"><span class="doodle">${isBoss ? "👾" : "⚡"}</span>${isBoss ? "Hạ BOSS" : "Nhiệm vụ của chặng"}
           <span class="section-count">${required.filter(c => state.passed[c.id]).length}/${required.length} xong</span></h3>
@@ -440,6 +443,7 @@ function renderStage(step) {
   $("#nextBtn")?.addEventListener("click", () => { if (stepDone(step)) go(next.id); });
   $("#certBtn")?.addEventListener("click", openCertificate);
   refreshFooter(step);
+  if (isBoss) bossBatDau(step);
 }
 
 /* ---------- chặng theo PRIMM: mỗi phần một tab. Làm xong phần đang mở thì nút "Tiếp" ở cuối tab sáng lên;
@@ -575,6 +579,119 @@ function nextLabel(next) {
   return next.kind === "gate" ? "Đến điểm dừng ⏸" : next.kind === "boss" ? "Vào BOSS 👾" : `Sang Chặng ${next.number} →`;
 }
 
+/* ---------- BOSS 3D + hẹn giờ (góp ý thầy 19/10/2026) ----------
+   Con boss dính ở đầu danh sách câu, đi theo khi cuộn. Đúng một câu: boss trúng đòn, mất máu, nói câu hài.
+   Sai: boss cười trêu. Hết giờ: boss phá khung code, báo thua; làm lại thì rút bộ câu và bài code khác. */
+const BOSS_KIEU = { 1: "bo", 2: "quai", 3: "rong", 4: "robot", 5: "trum", 6: "mach" };
+const BOSS_LOI = {
+  trung: ["Ối! Đòn đó trúng ngay chỗ hiểm rồi!", "Á á, sao bạn biết đáp án hay vậy?", "Khoan khoan, cho tôi thở cái đã!", "Ui da, đọc code kỹ thế à?"],
+  truot: ["Hehe, trượt rồi! Đọc lại từng dòng xem nào.", "Ha ha, máy in khác kìa!", "Suýt nữa thì trúng. Thử lại đi!"],
+  gap: ["Nhanh lên, đồng hồ sắp hết rồi đó!", "Còn chưa tới 2 phút, tôi sắp thắng rồi!"],
+  thang: ["Được rồi, được rồi, tôi chịu thua! Bạn giỏi thật đấy.", "Choáng quá… Bạn thắng rồi, nhận chứng chỉ đi!"],
+  thua: ["Hết giờ! Tôi phá khung code rồi nhé. Làm lại ván mới đi!", "Ha ha, ván này tôi thắng! Làm lại với bộ câu mới nào."]
+};
+let bossVat = null, bossDem = 0, bossTheo = null;
+function bossReq(step) { return step.challenges.filter(c => !c.advanced && !c.bonus); }
+function bossHp(step) { const r = bossReq(step); return Math.round(100 * (1 - r.filter(c => state.passed[c.id]).length / r.length)); }
+function bossXong(step) { return bossReq(step).every(c => state.passed[c.id]); }
+function bossGiay(step) { return Math.round((step.thoiGian || 12) * 60); }
+function bossConLai(step) { return state.bossStartAt ? Math.max(0, bossGiay(step) - Math.floor((Date.now() - state.bossStartAt) / 1000)) : bossGiay(step); }
+function bossLoi(step, loai) { const ds = step.bossLines?.[loai] || BOSS_LOI[loai]; return ds[Math.floor(Math.random() * ds.length)]; }
+const mmss = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+function bossDock(step) {
+  const hp = bossHp(step), n = bossReq(step).length;
+  return `<div class="boss-dock" id="bossDock">
+    <div class="boss-3d" id="boss3d"></div>
+    <div class="boss-info">
+      <div class="boss-ten">${esc(step.bossName || "BOSS")}</div>
+      <div class="hp-label">Máu <strong id="hpText">${hp}%</strong><span class="boss-cau" id="bossCau">Câu 1/${n}</span></div>
+      <div class="hp-track"><div class="hp-bar ${hp <= 34 ? "thap" : ""}" id="hpBar" style="width:${hp}%"></div></div>
+      <div class="boss-gio" id="bossGio" ${bossXong(step) ? "hidden" : ""}>⏱ Còn <strong>${mmss(bossConLai(step))}</strong></div>
+      <div class="b3-noi" id="bossNoi"></div>
+    </div>
+  </div>`;
+}
+
+function bossBatDau(step) {
+  clearInterval(bossDem); bossTheo?.disconnect();
+  bossVat?.huy?.(); bossVat = null;
+  const host = $("#boss3d");
+  if (!host) return;
+  bossVat = window.Boss3D ? window.Boss3D.mount(host, { kieu: step.bossKieu || BOSS_KIEU[L.number] || "quai", mau: step.bossMau }) : null;
+  bossTheoCau(step);
+  if (bossXong(step)) { bossVat?.thang(); bossVat?.noi(bossLoi(step, "thang")); return; }
+  if (state.bossLost) { bossVat?.thua(); bossVat?.noi(bossLoi(step, "thua")); bossPha(step, false); return; }
+  if (!state.bossStartAt) { state.bossStartAt = Date.now(); save(); }
+  const phut = step.thoiGian || 12;
+  bossVat?.noi(step.bossChao || `Tôi là ${esc(step.bossName || "BOSS")}. Bạn có <strong>${phut} phút</strong> để hạ tôi. Bắt đầu!`);
+  let daGap = false;
+  const tick = () => {
+    if (!host.isConnected) { clearInterval(bossDem); return; }
+    if (bossXong(step)) { clearInterval(bossDem); $("#bossGio")?.setAttribute("hidden", ""); bossVat?.gap(false); return; }
+    const conLai = bossConLai(step), el = $("#bossGio");
+    if (el) { $("strong", el).textContent = mmss(conLai); el.classList.toggle("gap", conLai <= 120); }
+    if (conLai <= 120 && !daGap) { daGap = true; bossVat?.gap(true); bossVat?.noi(bossLoi(step, "gap")); }
+    if (conLai <= 0) { clearInterval(bossDem); bossThua(step); }
+  };
+  tick(); bossDem = setInterval(tick, 1000);
+}
+
+// "Câu i/6": câu đang nằm giữa màn hình.
+function bossTheoCau(step) {
+  const cards = $$(".boss-stage .challenge-section:not(.advanced-section) .challenge-card"), nhan = $("#bossCau");
+  if (!cards.length || !nhan || !("IntersectionObserver" in window)) return;
+  bossTheo = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) nhan.textContent = `Câu ${cards.indexOf(e.target) + 1}/${cards.length}`;
+  }), { rootMargin: "-35% 0px -55% 0px" });
+  cards.forEach(c => bossTheo.observe(c));
+}
+
+function bossDanh(step, c) {
+  if (!bossVat || c.advanced || c.bonus) return;
+  bossVat.dmg(Math.round(100 / bossReq(step).length));
+  if (bossXong(step)) {
+    clearInterval(bossDem); $("#bossGio")?.setAttribute("hidden", "");
+    setTimeout(() => { bossVat?.thang(); bossVat?.noi(bossLoi(step, "thang")); }, 650);
+  } else bossVat.noi(bossLoi(step, "trung"));
+}
+
+function bossThua(step) {
+  if (bossXong(step) || state.bossLost) return;
+  state.bossLost = true; save();
+  bossVat?.thua(); bossVat?.noi(bossLoi(step, "thua")); beep("bad");
+  bossPha(step, true);
+}
+
+// Hết giờ: khung code rung rồi nứt vỡ, mọi ô làm bài bị khoá, hiện bảng thua + nút làm lại.
+function bossPha(step, hieuUng) {
+  $$(".boss-stage .challenge-card").forEach(card => {
+    card.classList.add(hieuUng ? "bi-pha" : "da-pha");
+    $$("input, textarea, select, button", card).forEach(x => { x.disabled = true; });
+  });
+  let box = $("#bossThuaBox");
+  if (!box) { box = document.createElement("div"); box.id = "bossThuaBox"; box.className = "boss-thua"; $("#bossDock")?.after(box); }
+  box.innerHTML = `<div class="boss-thua-icon">⏰</div>
+    <h3>Hết giờ! ${esc(step.bossName || "BOSS")} thắng ván này</h3>
+    <p>Khung code đã bị phá. Bạn làm lại với <strong>bộ câu hỏi mới</strong> và <strong>bài code mới</strong>. Đồng hồ chạy lại từ đầu.</p>
+    <button type="button" class="primary-button big" id="bossLamLai">🔁 Làm lại với bộ câu mới</button>`;
+  $("#bossLamLai").addEventListener("click", () => bossLamLai(step));
+  if (hieuUng) setTimeout(() => box.scrollIntoView({ behavior: "smooth", block: "center" }), 900);
+}
+
+async function bossLamLai(step) {
+  const btn = $("#bossLamLai"); if (btn) { btn.disabled = true; btn.textContent = "Đang rút bộ câu mới…"; }
+  for (const c of step.challenges) {
+    delete state.passed[c.id]; delete state.attempts[c.id]; delete state.drafts[c.id]; delete state.inputs[c.id];
+    if (state.choices) delete state.choices[c.id];
+  }
+  state.bossTry = (state.bossTry || 0) + 1;
+  delete state.bossStartAt; delete state.bossLost;
+  save();
+  try { await CppCloud.flush?.(); } catch { /* vẫn tải lại */ }
+  location.reload();
+}
+
 function bossBar(step) {
   const req = step.challenges.filter(c => !c.advanced && !c.bonus);
   const hit = req.filter(c => state.passed[c.id]).length;
@@ -595,7 +712,7 @@ function refreshFooter(step) {
   if (step.kind === "boss") {
     const hit = req.filter(c => state.passed[c.id]).length;
     const hp = Math.round(100 * (1 - hit / req.length));
-    if ($("#hpBar")) { $("#hpBar").style.width = `${hp}%`; $("#hpText").textContent = `${hp}%`; }
+    if ($("#hpBar")) { $("#hpBar").style.width = `${hp}%`; $("#hpText").textContent = `${hp}%`; $("#hpBar").classList.toggle("thap", hp <= 34); }
     const cert = $("#certBtn");
     if (cert) cert.disabled = !allRequiredDone();
     if (note) note.textContent = allRequiredDone()
@@ -1500,8 +1617,9 @@ function pass(c, card, msg, btn, starNow = false) {
     confetti(r ? { x: r.left + r.width / 2, y: r.top } : null, starNow);
     beep(starNow ? "win" : "good");
     const cheers = ["Tuyệt vời!", "Quá đỉnh!", "Chuẩn luôn!", "Bạn giỏi quá!", "Xuất sắc!"];
-    bitSay(`<strong>${cheers[Math.floor(Math.random() * cheers.length)]}</strong>${extra}`, "happy", 3500);
+    if (step.kind !== "boss") bitSay(`<strong>${cheers[Math.floor(Math.random() * cheers.length)]}</strong>${extra}`, "happy", 3500);
   }
+  if (step.kind === "boss" && first) bossDanh(step, c);
   updateTop();
   renderMap();
   if (step.flow) flowRefresh(step);
@@ -1509,14 +1627,16 @@ function pass(c, card, msg, btn, starNow = false) {
   if (step.kind === "boss" && first && allRequiredDone()) {
     beep("win"); confetti(null, true);
     bitSay("<strong>BOSS gục rồi!</strong> Lưu chứng chỉ để nộp nhé. Còn sức thì thử nhiệm vụ nâng cao để lấy huy hiệu vàng!", "wow");
-    if (!c.advanced && !window.LessonCelebration) setTimeout(openCertificate, 1200);
+    if (!c.advanced && !window.LessonCelebration) setTimeout(openCertificate, 2800);
   }
 }
 
 function miss(card, msg) {
   state.combo = 0; save(); updateTop();
   result(card, "bad", msg);
-  bitSay("Chưa đúng — đọc dòng ❌ ngay dưới nút nhé. Bạn làm được!", "sad", 3500);
+  const st = activeStep();
+  if (st?.kind === "boss" && bossVat) { bossVat.treu(); bossVat.noi(bossLoi(st, "truot")); }
+  else bitSay("Chưa đúng — đọc dòng ❌ ngay dưới nút nhé. Bạn làm được!", "sad", 3500);
   beep("bad");
 }
 
@@ -1541,49 +1661,107 @@ function openCertificate(bypass=false) {
   if (!d.open) d.showModal();
 }
 
+// Chứng chỉ (góp ý thầy 19/10/2026): gọn, đẹp, chỉ giữ tên, lớp, bài, boss đã hạ, ngày và mã đối chiếu.
 function drawCertificate() {
   const cv = $("#certCanvas"), ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
-  const gold = isGold();
+  const gold = isGold(), boss = bossStep();
+  const kieu = boss?.bossKieu || BOSS_KIEU[L.number] || "quai";
+  const mauBoss = boss?.bossMau || window.Boss3D?.MAU?.[kieu] || "#8b5cf6";
+  const NAVY = "#17304f", XANH = "#2076d2", TIM = "#5640a5", NHAT = "#6b7a90";
+  const vien = gold ? "#c99700" : XANH;
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = "#fffdf7"; ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = "rgba(44,107,171,.10)"; ctx.lineWidth = 1;
-  for (let x = 0; x < W; x += 42) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-  for (let y = 0; y < H; y += 42) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-  ctx.strokeStyle = "#17304f"; ctx.lineWidth = 12; rr(ctx, 40, 40, W - 80, H - 80, 28); ctx.stroke();
-  ctx.strokeStyle = gold ? "#d9a400" : "#2076d2"; ctx.lineWidth = 4; rr(ctx, 66, 66, W - 132, H - 132, 22); ctx.stroke();
-  ctx.fillStyle = "#173b78"; rr(ctx, 120, 130, 170, 115, 24); ctx.fill();
-  ctx.fillStyle = "#fff"; ctx.font = "900 58px Segoe UI, Arial"; ctx.textAlign = "center"; ctx.fillText("C++", 205, 207);
-  ctx.beginPath(); ctx.arc(W - 210, 190, 72, 0, Math.PI * 2);
-  ctx.fillStyle = gold ? "#ffd44d" : "#dfe6ee"; ctx.fill();
-  ctx.lineWidth = 6; ctx.strokeStyle = gold ? "#b47700" : "#8a97a8"; ctx.stroke();
-  ctx.font = "64px Segoe UI Emoji, Apple Color Emoji, sans-serif"; ctx.fillText(L.badge.icon, W - 210, 213);
-  ctx.font = "800 20px Segoe UI, Arial"; ctx.fillStyle = gold ? "#7d5600" : "#4f5d70";
-  ctx.fillText(gold ? "HUY HIỆU VÀNG" : "HUY HIỆU BẠC", W - 210, 292);
-  ctx.fillStyle = "#17304f"; ctx.font = "900 30px Segoe UI, Arial"; ctx.fillText("CHỨNG NHẬN HOÀN THÀNH TỰ HỌC", W / 2, 165);
-  ctx.fillStyle = "#2076d2"; fit(ctx, `BÀI ${L.number}: ${L.title.toUpperCase()}`, W / 2, 235, 980, 54, 34, "#2076d2");
-  ctx.fillStyle = "#61708a"; ctx.font = "500 26px Segoe UI, Arial"; ctx.fillText(`C++ Journey 8 · ${L.story}`, W / 2, 285);
-  ctx.fillStyle = "#17304f"; ctx.font = "500 25px Segoe UI, Arial"; ctx.fillText("Chứng nhận học sinh", W / 2, 385);
-  fit(ctx, state.student.name, W / 2, 460, 1100, 56, 36, "#6547bb");
-  ctx.strokeStyle = "#d1c8b7"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(260, 490); ctx.lineTo(W - 260, 490); ctx.stroke();
-  ctx.fillStyle = "#17304f"; ctx.font = "700 28px Segoe UI, Arial"; ctx.fillText(`Lớp ${state.student.className}`, W / 2, 545);
-  ctx.font = "500 25px Segoe UI, Arial";
-  const nStage = STEPS.filter(s => s.kind === "stage").length;
-  ctx.fillText(`đã vượt ${nStage} chặng và chặng chứng chỉ · ${state.xp} XP${gold ? " · hoàn thành cả nhiệm vụ nâng cao" : ""}`, W / 2, 600);
-  ctx.font = "700 20px Segoe UI, Arial";
-  L.skills.forEach((b, i) => {
-    const w = 295, x = 195 + (i % 3) * 410, y = 672 + Math.floor(i / 3) * 78;
-    ctx.fillStyle = i % 2 ? "#fff1db" : "#eaf4ff"; rr(ctx, x, y, w, 52, 26); ctx.fill();
-    ctx.strokeStyle = i % 2 ? "#ef8a17" : "#2076d2"; ctx.lineWidth = 2; rr(ctx, x, y, w, 52, 26); ctx.stroke();
-    ctx.fillStyle = "#17304f"; ctx.textAlign = "center"; ctx.fillText(b, x + w / 2, y + 34);
-  });
+  // Nền kem + quầng sáng nhẹ ở giữa
+  ctx.fillStyle = "#fffaf0"; ctx.fillRect(0, 0, W, H);
+  const g = ctx.createRadialGradient(W / 2, H / 2 - 40, 80, W / 2, H / 2, W * 0.62);
+  g.addColorStop(0, "rgba(255,255,255,.95)"); g.addColorStop(1, "rgba(241,237,255,.9)");
+  ctx.fillStyle = g; rr(ctx, 36, 36, W - 72, H - 72, 30); ctx.fill();
+  // Viền đôi
+  ctx.strokeStyle = NAVY; ctx.lineWidth = 10; rr(ctx, 36, 36, W - 72, H - 72, 30); ctx.stroke();
+  ctx.strokeStyle = vien; ctx.lineWidth = 3; rr(ctx, 62, 62, W - 124, H - 124, 22); ctx.stroke();
+  // Hoa văn góc: dấu ngoặc nhọn kiểu code
+  ctx.fillStyle = "rgba(32,118,210,.13)"; ctx.font = "900 150px Consolas, 'Courier New', monospace"; ctx.textAlign = "center";
+  ctx.fillText("{", 150, 260); ctx.fillText("}", W - 150, 260);
+  // Nhãn khoá học
+  ctx.font = "800 24px Segoe UI, Arial";
+  const nhan = "C++ JOURNEY 8  ·  LẬP TRÌNH C++ LỚP 8", wN = ctx.measureText(nhan).width + 56;
+  ctx.fillStyle = TIM; rr(ctx, W / 2 - wN / 2, 108, wN, 46, 23); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.fillText(nhan, W / 2, 140);
+  // Tiêu đề
+  ctx.fillStyle = NAVY; ctx.font = "900 92px Segoe UI, Arial";
+  ctx.save(); ctx.letterSpacing = "10px"; ctx.fillText("CHỨNG NHẬN", W / 2, 268); ctx.restore();
+  fit(ctx, `Bài ${L.number}: ${L.title}`, W / 2, 334, 1100, 40, 28, XANH);
+  // Người nhận
+  ctx.fillStyle = NHAT; ctx.font = "italic 500 28px Segoe UI, Arial"; ctx.fillText("Trao cho", W / 2, 432);
+  fit(ctx, state.student.name, W / 2, 522, 1050, 84, 44, TIM);
+  ctx.strokeStyle = vien; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(W / 2 - 360, 556); ctx.lineTo(W / 2 + 360, 556); ctx.stroke();
+  ctx.fillStyle = NAVY; ctx.font = "800 34px Segoe UI, Arial"; ctx.fillText(`Lớp ${state.student.className}`, W / 2, 616);
+  ctx.font = "500 32px Segoe UI, Arial"; ctx.fillStyle = NAVY;
+  ctx.fillText(`đã hạ ${boss?.bossName || "BOSS"} và hoàn thành chặng chứng chỉ`, W / 2, 686);
+  // Huy hiệu bài (trái) và con boss đã bị hạ (phải)
+  huyHieu(ctx, 300, 815, gold);
+  bossBiHa(ctx, W - 300, 830, mauBoss, kieu);
+  // Ngày + mã đối chiếu
   const date = new Date(state.completedAt || Date.now()).toLocaleDateString("vi-VN");
-  ctx.fillStyle = "#61708a"; ctx.font = "500 19px Segoe UI, Arial"; ctx.textAlign = "left";
-  ctx.fillText(`Ngày hoàn thành: ${date}`, 120, 965);
-  ctx.fillText(`Mã xác nhận: ${certId()}`, 120, 1000);
-  ctx.textAlign = "right";
-  const issuer = [CFG.schoolName, CFG.teacherName ? `GV: ${CFG.teacherName}` : ""].filter(Boolean).join(" · ");
-  ctx.fillText(issuer || "Tạo trực tiếp từ tiến độ trên web", W - 120, 965);
-  ctx.fillText(L.certNote || "Nộp kèm: link Programiz bài cá nhân + ảnh màn hình kết quả", W - 120, 1000);
+  ctx.fillStyle = NAVY; ctx.font = "700 28px Segoe UI, Arial"; ctx.textAlign = "center";
+  ctx.fillText(`Ngày ${date}`, W / 2, 900);
+  ctx.strokeStyle = "#d8cfbd"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(W / 2 - 150, 920); ctx.lineTo(W / 2 + 150, 920); ctx.stroke();
+  ctx.fillStyle = "#9aa5b4"; ctx.font = "500 18px Consolas, 'Courier New', monospace";
+  ctx.fillText(`Mã: ${certId()}`, W / 2, H - 92);
+}
+
+function huyHieu(ctx, x, y, gold) {
+  const vien = gold ? "#b47700" : "#7d8ba0", nen = gold ? "#ffd44d" : "#e3e9f1";
+  ctx.save();
+  // hai dải ruy băng
+  ctx.fillStyle = gold ? "#e0a800" : "#2076d2";
+  ctx.beginPath(); ctx.moveTo(x - 60, y + 40); ctx.lineTo(x - 95, y + 150); ctx.lineTo(x - 55, y + 128); ctx.lineTo(x - 30, y + 165); ctx.lineTo(x - 5, y + 55); ctx.fill();
+  ctx.fillStyle = gold ? "#c99000" : "#5640a5";
+  ctx.beginPath(); ctx.moveTo(x + 60, y + 40); ctx.lineTo(x + 95, y + 150); ctx.lineTo(x + 55, y + 128); ctx.lineTo(x + 30, y + 165); ctx.lineTo(x + 5, y + 55); ctx.fill();
+  // mặt huy hiệu răng cưa
+  ctx.beginPath();
+  for (let i = 0; i < 32; i++) { const a = i / 32 * Math.PI * 2, r = i % 2 ? 92 : 100; ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); }
+  ctx.closePath(); ctx.fillStyle = vien; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, 80, 0, Math.PI * 2); ctx.fillStyle = nen; ctx.fill();
+  ctx.lineWidth = 4; ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(x, y, 68, 0, Math.PI * 2); ctx.stroke();
+  ctx.textAlign = "center"; ctx.font = "64px Segoe UI Emoji, Apple Color Emoji, sans-serif"; ctx.fillText(L.badge?.icon || "🏆", x, y + 22);
+  ctx.fillStyle = gold ? "#7d5600" : "#4f5d70"; ctx.font = "900 20px Segoe UI, Arial";
+  ctx.fillText(gold ? "HUY HIỆU VÀNG" : "HUY HIỆU BẠC", x, y + 196);
+  ctx.restore();
+}
+
+// Con boss vẽ 2D (cùng màu với boss 3D): nằm choáng, mắt xoắn ốc, sao quay trên đầu.
+function bossBiHa(ctx, x, y, mau, kieu) {
+  ctx.save();
+  ctx.fillStyle = "rgba(23,48,79,.13)"; ctx.beginPath(); ctx.ellipse(x, y + 92, 120, 20, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.translate(x, y); ctx.rotate(-0.18);
+  ctx.fillStyle = mau; ctx.strokeStyle = "#17304f"; ctx.lineWidth = 5;
+  ctx.beginPath();
+  if (kieu === "robot" || kieu === "mach") rr(ctx, -105, -80, 210, 165, 36); else ctx.ellipse(0, 0, 112, 88, 0, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // phụ kiện nhỏ theo bài
+  ctx.fillStyle = "#ffd166";
+  if (kieu === "bo") { ctx.beginPath(); ctx.moveTo(-30, -82); ctx.lineTo(-60, -130); ctx.moveTo(30, -82); ctx.lineTo(60, -130); ctx.stroke(); ctx.beginPath(); ctx.arc(-60, -134, 11, 0, 7); ctx.arc(60, -134, 11, 0, 7); ctx.fill(); }
+  if (kieu === "rong") { ctx.fillStyle = "#fff3c4"; for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s * 40, -78); ctx.lineTo(s * 62, -128); ctx.lineTo(s * 72, -70); ctx.fill(); ctx.stroke(); } }
+  if (kieu === "trum") { ctx.fillStyle = "#ffd34d"; ctx.beginPath(); ctx.moveTo(-55, -80); ctx.lineTo(-55, -125); ctx.lineTo(-28, -100); ctx.lineTo(0, -135); ctx.lineTo(28, -100); ctx.lineTo(55, -125); ctx.lineTo(55, -80); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  if (kieu === "robot") { ctx.beginPath(); ctx.moveTo(0, -80); ctx.lineTo(0, -118); ctx.stroke(); ctx.fillStyle = "#ff6b6b"; ctx.beginPath(); ctx.arc(0, -124, 12, 0, 7); ctx.fill(); }
+  ctx.textAlign = "center";
+  if (kieu === "quai") { ctx.fillStyle = "#ffd166"; ctx.font = "900 54px Segoe UI, Arial"; ctx.fillText("?", 0, -98); }
+  if (kieu === "mach") { ctx.font = "44px Segoe UI Emoji, sans-serif"; ctx.fillText("⚡", -80, -86); }
+  // mắt xoắn ốc
+  for (const ex of [-40, 40]) {
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ex, -12, 27, 0, Math.PI * 2); ctx.fill(); ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); for (let t = 0; t < 4 * Math.PI; t += 0.2) { const r = 2 + t * 1.7; ctx.lineTo(ex + Math.cos(t) * r, -12 + Math.sin(t) * r); } ctx.stroke();
+  }
+  // má hồng + miệng há + lưỡi
+  ctx.fillStyle = "rgba(255,130,160,.75)"; ctx.beginPath(); ctx.ellipse(-72, 22, 16, 9, 0, 0, 7); ctx.ellipse(72, 22, 16, 9, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#7a2335"; ctx.beginPath(); ctx.ellipse(0, 36, 22, 16, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#ff8fab"; ctx.beginPath(); ctx.ellipse(8, 48, 11, 8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  // sao choáng
+  ctx.save(); ctx.textAlign = "center"; ctx.font = "34px Segoe UI Emoji, sans-serif";
+  [[-70, -150], [0, -172], [70, -150]].forEach(([dx, dy]) => ctx.fillText("⭐", x + dx, y + dy));
+  ctx.fillStyle = "#4f5d70"; ctx.font = "800 22px Segoe UI, Arial"; ctx.fillText("Đã bị hạ!", x, y + 150);
+  ctx.restore();
 }
 
 function rr(ctx, x, y, w, h, r) {
