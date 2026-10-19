@@ -97,7 +97,7 @@
       const ngoc = cau(0.08, toon("#ff5d8f"), 0, 0.98, 0.52); phu.add(ngoc); lungLay.push(ngoc);
     } else if (kieu === "mach") {
       const chan = toon("#cbd5e1");
-      for (const x of [-0.6, -0.2, 0.2, 0.6]) for (const y of [0.78, -0.78]) phu.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.22, 0.1), chan), { position: new THREE.Vector3(x, y * 1.02, -0.2) }));
+      for (const x of [-0.6, -0.2, 0.2, 0.6]) for (const y of [0.78, -0.78]) { const ch = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.22, 0.1), chan); ch.position.set(x, y * 1.02, -0.2); phu.add(ch); }
       for (const s of [-1, 1]) { const tia = sprite(chuTexture(THREE, "⚡", "#ffe066"), 0.55, s * 1.05, 0.95, 0); phu.add(tia); lungLay.push(tia); }
     }
     lungLay.forEach(o => { o.userData.goc = o.position.clone(); });
