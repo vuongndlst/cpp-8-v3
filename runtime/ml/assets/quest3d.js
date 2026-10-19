@@ -5,7 +5,7 @@
  * checkpoint cuối mở (index.html?nhung=1&cuoi=1) -> chứng chỉ như trang thường.
  * Tiến độ, đáp án, chứng chỉ: KHÔNG làm lại ở đây — do app.js xử lý, lưu cùng khoá localStorage.
  *
- * Điều khiển: WASD / phím mũi tên; E, Enter, Space để vào trạm; kéo chuột để xoay; lăn chuột để gần/xa.
+ * Điều khiển: phím mũi tên (không dùng WASD vì bộ gõ Telex); E, Enter, Space để vào trạm; kéo chuột để xoay; lăn chuột để gần/xa.
  * Cảm ứng (iPad): chạm-kéo nửa trái = cần điều khiển; chạm vào trạm = tự đi tới; nút "Vào trạm".
  * Âm thanh tự tạo bằng Web Audio (không tải file nhạc). Máy yếu: tự chuyển chế độ nhẹ.
  */
@@ -698,7 +698,7 @@ function moMenu(hien) {
   menu.appendChild(h("button", {class:'q-end-session',text:"Kết thúc buổi học",onclick:()=>parent.postMessage({type:'portal-session-end'},location.origin)}));
   menu.appendChild(h("button", { text: "Cách điều khiển", onclick: () => { moMenu(false); thongBao(CAM_UNG ?
     "Kéo ở nửa trái màn hình để đi · chạm vào trạm để tự đi tới · bấm nút vàng để vào trạm." :
-    "WASD hoặc phím mũi tên để đi · E / Enter để vào trạm · kéo chuột để xoay · lăn chuột để gần/xa · M tắt tiếng.", "", 6000); } }));
+    "Phím mũi tên để đi · E / Enter để vào trạm · kéo chuột để xoay · lăn chuột để gần/xa · M tắt tiếng.", "", 6000); } }));
 }
 document.addEventListener("click", (e) => { if (!menu.contains(e.target) && !nutMenu.contains(e.target)) moMenu(false); });
 
@@ -879,14 +879,22 @@ addEventListener("keydown", (e) => {
   if (miniOpen) return;
   if (khungMo) { if (e.key === "Escape") dongKhung(); return; }
   if (manDau && !manDau.classList.contains("an")) return;
-  const k = e.key.toLowerCase();
-  if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
-  if (k === "e" || k === "enter" || k === " ") { if (gan) vaoTram(gan); return; }
-  if (k === "m") { khoiDongAm(); datAm(!QS.am); return; }
-  if (k === "escape") { moMenu(false); return; }
-  PHIM.add(k); dich = null;
+  // Chỉ di chuyển bằng phím mũi tên (theo e.code, không phụ thuộc bộ gõ). Bộ gõ tiếng Việt kiểu Telex (Unikey) chặn
+  // W/A/S/D để ghép dấu rồi gửi phím thay thế, làm mất sự kiện nhả phím nên nhân vật bị kẹt chạy mãi (thầy báo 19/10/2026).
+  const MUI_TEN = { ArrowUp: "arrowup", ArrowDown: "arrowdown", ArrowLeft: "arrowleft", ArrowRight: "arrowright" };
+  const k = (e.key || "").toLowerCase();
+  if (MUI_TEN[e.code] || e.code === "Space") e.preventDefault();
+  if (k === "e" || k === "ê" || e.code === "KeyE" || e.code === "Enter" || e.code === "NumpadEnter" || e.code === "Space") { if (gan) vaoTram(gan); return; }
+  if (e.code === "KeyM") { khoiDongAm(); datAm(!QS.am); return; }
+  if (e.code === "Escape") { moMenu(false); return; }
+  if (MUI_TEN[e.code]) { PHIM.add(MUI_TEN[e.code]); dich = null; return; }
+  // Phím lạ do bộ gõ gửi (Process, Backspace giả, chữ có dấu): xoá phím đang giữ để không bị kẹt.
+  if (e.key === "Process" || e.key === "Unidentified" || e.code === "Backspace") PHIM.clear();
 });
-addEventListener("keyup", (e) => PHIM.delete(e.key.toLowerCase()));
+addEventListener("keyup", (e) => {
+  const MUI_TEN = { ArrowUp: "arrowup", ArrowDown: "arrowdown", ArrowLeft: "arrowleft", ArrowRight: "arrowright" };
+  if (MUI_TEN[e.code]) PHIM.delete(MUI_TEN[e.code]);
+});
 addEventListener("blur", () => PHIM.clear());
 
 const cv = renderer.domElement;
@@ -1016,10 +1024,10 @@ function khung_hinh() {
   // di chuyển
   let ix = 0, iz = 0;
   if (dangChoi) {
-    if (PHIM.has("w") || PHIM.has("arrowup")) iz -= 1;
-    if (PHIM.has("s") || PHIM.has("arrowdown")) iz += 1;
-    if (PHIM.has("a") || PHIM.has("arrowleft")) ix -= 1;
-    if (PHIM.has("d") || PHIM.has("arrowright")) ix += 1;
+    if (PHIM.has("arrowup")) iz -= 1;
+    if (PHIM.has("arrowdown")) iz += 1;
+    if (PHIM.has("arrowleft")) ix -= 1;
+    if (PHIM.has("arrowright")) ix += 1;
     if (CAN.hoat) { ix += CAN.dx; iz += CAN.dy; }
   }
   const sy = Math.sin(camYaw), cy = Math.cos(camYaw);
@@ -1100,7 +1108,7 @@ manDau.appendChild(h("div", { class: "q-the" }, [
   h("h1", { text: CFG.ten_dao }),
   h("p", { class: "q-cau", text: B.cau_hoi }),
   h("p", { text: ({workshop:'Khám phá xưởng robot, bánh răng và bàn lắp ráp.',space:'Khám phá bệ phóng, tên lửa và dàn pin của trạm không gian.',archive:'Khám phá các kho dữ liệu và đường kết nối giữa chúng.',research:'Khám phá nhà kính nghiên cứu và các cụm dữ liệu theo chủ đề bài học.',neural:'Khám phá phòng thí nghiệm nơ-ron: các tầng nơ-ron phát sáng và dòng tín hiệu theo chủ đề bài học.'})[THEME] + ' Hoàn thành trạm trước để mở trạm tiếp theo; khi vào bài, thế giới tạm dừng.' }),
-  h("p", { class: "q-nho", text: CAM_UNG ? "Kéo để di chuyển hoặc chạm trạm để đi tới." : "Di chuyển: WASD/phím mũi tên · Vào trạm: E · Xoay nhìn: kéo chuột." }),
+  h("p", { class: "q-nho", text: CAM_UNG ? "Kéo để di chuyển hoặc chạm trạm để đi tới." : "Di chuyển: phím mũi tên ← ↑ → ↓ · Vào trạm: E hoặc Enter · Xoay nhìn: kéo chuột." }),
   h("div", { class: "q-hang" }, [nutVao, h("a", { class: "q-lien-ket", href: trangDocURL(), onclick: moCheDoDoc, text: "Học ở chế độ đọc" })]),
 ]));
 document.body.appendChild(manDau);
