@@ -23,8 +23,6 @@ const CLASSES = ["8A1", "8A2", "8A3", "8A4", "8A5", "8A6", "8A7", "8A8", "8A9", 
 const XP_PASS = 10, XP_FIRST_TRY = 5, STAR_LOSS = 10;
 
 const STEPS = L.steps.filter(step=>step.kind!=='gate'||!selfStudy());
-// Nhiệm vụ bắt buộc: không tính nhiệm vụ nâng cao (BOSS) và nhiệm vụ phụ (ở điểm dừng).
-const REQUIRED = STEPS.flatMap(s => (s.challenges || []).filter(c => !c.advanced && !c.bonus).map(c => c.id));
 
 let state = null, cppBusy=false;
 
@@ -82,11 +80,11 @@ function stepDone(step) {
 }
 function stepUnlocked(index) { return Boolean(state.completedAt) || STEPS.slice(0,index).every(stepDone); }
 function bossStep() { return STEPS.find(s => s.kind === "boss"); }
-function allRequiredDone() { return REQUIRED.every(id => state.passed[id]) && STEPS.filter(s=>s.kind!=="gate").every(stepDone); }
-function isGold() {
-  return allRequiredDone() && bossStep().challenges.filter(c => c.advanced).every(c => state.passed[c.id]);
-}
+function completionStatus() { return CppProgress.assess(STEPS, state?.passed || {}); }
+function allRequiredDone() { return completionStatus().completed; }
+function isGold() { return completionStatus().gold; }
 function activeStep() { return STEPS.find(s => s.id === state.active); }
+function lockedByBoss() { return Boolean(state?.bossLost && activeStep()?.kind === "boss"); }
 
 /* ---------- chạy C++ ---------- */
 // JSCPP cho gọi hàm viết SAU main mà không khai báo trước; g++ (Programiz) thì báo lỗi → web cũng báo lỗi.
@@ -384,6 +382,7 @@ function renderScratch(root) {
 
 /* ---------- trang từng bước ---------- */
 function renderAll(entering = false) {
+  CppTerminal.stopAll("Đã dừng vì bạn chuyển chặng."); CppRun.stop();
   const idx = STEPS.findIndex(s => s.id === state.active);
   if (idx < 0 || !stepUnlocked(idx)) {
     const last = [...STEPS].reverse().find(s => stepUnlocked(STEPS.indexOf(s)));
@@ -413,6 +412,11 @@ function renderStage(step) {
   const next = STEPS[idx + 1];
   const required = step.challenges.filter(c => !c.advanced && !c.bonus);
   const advanced = step.challenges.filter(c => c.advanced);
+  const footer = `<div class="stage-footer">
+    <div class="stage-complete-note" id="stageNote" role="status"></div>
+    ${next ? `<button id="nextBtn" class="primary-button big" type="button">${nextLabel(next)}</button>`
+           : `<button id="certBtn" class="certificate-button" type="button">🏆 Nhận chứng chỉ bạc</button>`}
+  </div>`;
   $("#stepContainer").innerHTML = `
   <article class="stage-page ${isBoss ? "boss-stage" : ""}" data-stage="${esc(step.id)}">
     <header class="stage-hero">
@@ -420,28 +424,33 @@ function renderStage(step) {
       <h2>${esc(step.title)}</h2>
       ${step.objectives ? `<div class="stage-objectives">${step.objectives.map(o => `<span>🎯 ${esc(o)}</span>`).join("")}</div>` : ""}
     </header>
-    <div class="lesson-body">
-      ${isBoss ? bossDock(step) : (step.lesson || "")}
+    <div class="lesson-body ${isBoss ? "boss-layout" : ""}">
+      ${isBoss ? `<aside class="boss-sidebar" aria-label="Tiến độ Boss">${bossDock(step)}</aside><div class="boss-work">` : (step.lesson || "")}
       <section class="challenge-section">
         <h3 class="section-heading"><span class="doodle">${isBoss ? "👾" : "⚡"}</span>${isBoss ? "Hạ BOSS" : "Nhiệm vụ của chặng"}
-          <span class="section-count">${required.filter(c => state.passed[c.id]).length}/${required.length} xong</span></h3>
+          <span class="section-count">${isBoss ? "Bạc: " : ""}${required.filter(c => state.passed[c.id]).length}/${required.length} xong</span></h3>
         <div class="challenge-list">${required.map(renderChallenge).join("")}</div>
       </section>
+      ${isBoss ? footer : ""}
       ${advanced.length ? `<section class="challenge-section advanced-section">
-        <h3 class="section-heading"><span class="doodle">🥇</span>Nâng cao — xong sớm thì làm, đạt cả ${advanced.length} để có huy hiệu vàng</h3>
+        <h3 class="section-heading"><span class="doodle">🥇</span>Nâng cao — tùy chọn để nhận chứng chỉ vàng</h3>
+        <p class="advanced-note">Phần này không bắt buộc để hạ Boss hoặc nhận chứng chỉ bạc.</p>
         <div class="challenge-list">${advanced.map(renderChallenge).join("")}</div>
       </section>` : ""}
-      <div class="stage-footer">
-        <div class="stage-complete-note" id="stageNote"></div>
-        ${next ? `<button id="nextBtn" class="primary-button big" type="button">${nextLabel(next)}</button>`
-               : `<button id="certBtn" class="certificate-button" type="button">🏆 Mở chứng chỉ</button>`}
-      </div>
+      ${isBoss ? "</div>" : footer}
     </div>
   </article>`;
   const media=document.createElement("div");$("#stepContainer .challenge-section").before(media);CPPMedia.mount(media,L.media,step.id);
   step.challenges.filter(c=>!c.waitingBank).forEach(bindChallenge);mountWaitingBank(step);
   $("#nextBtn")?.addEventListener("click", () => { if (stepDone(step)) go(next.id); });
   $("#certBtn")?.addEventListener("click", openCertificate);
+  const bossToggle = $(".boss-toggle");
+  bossToggle?.addEventListener("click", () => {
+    const expanded = bossToggle.getAttribute("aria-expanded") !== "true";
+    bossToggle.setAttribute("aria-expanded", String(expanded));
+    $("#bossDock").dataset.expanded = String(expanded);
+    bossToggle.textContent = expanded ? "Thu gọn Boss" : "Hiện Boss";
+  });
   refreshFooter(step);
   if (isBoss) bossBatDau(step);
 }
@@ -453,6 +462,7 @@ function screenDone(step, sc) { return screenTasks(step, sc).filter(c => !c.adva
 function flowReach(step) { let i = 0; while (i < step.flow.length - 1 && screenDone(step, step.flow[i])) i++; return i; }
 function flowAt(step) { state.screens = state.screens || {}; return Math.min(state.screens[step.id] ?? flowReach(step), flowReach(step)); }
 function flowTab(step, k) {
+  CppTerminal.stopAll("Đã dừng vì bạn chuyển phần học."); CppRun.stop();
   state.screens = state.screens || {}; state.screens[step.id] = k; save();
   flowRefresh(step);
   $(".flow-hero")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -591,9 +601,9 @@ const BOSS_LOI = {
   thua: ["Hết giờ! Tôi phá khung code rồi nhé. Làm lại ván mới đi!", "Ha ha, ván này tôi thắng! Làm lại với bộ câu mới nào."]
 };
 let bossVat = null, bossDem = 0, bossTheo = null;
-function bossReq(step) { return step.challenges.filter(c => !c.advanced && !c.bonus); }
-function bossHp(step) { const r = bossReq(step); return Math.round(100 * (1 - r.filter(c => state.passed[c.id]).length / r.length)); }
-function bossXong(step) { return bossReq(step).every(c => state.passed[c.id]); }
+function bossReq(step) { return CppProgress.required(step); }
+function bossHp(step) { return completionStatus().boss.hp; }
+function bossXong(step) { return completionStatus().boss.completed; }
 function bossGiay(step) { return Math.round((step.thoiGian || 12) * 60); }
 function bossConLai(step) { return state.bossStartAt ? Math.max(0, bossGiay(step) - Math.floor((Date.now() - state.bossStartAt) / 1000)) : bossGiay(step); }
 function bossLoi(step, loai) { const ds = step.bossLines?.[loai] || BOSS_LOI[loai]; return ds[Math.floor(Math.random() * ds.length)]; }
@@ -601,13 +611,16 @@ const mmss = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 6
 
 function bossDock(step) {
   const hp = bossHp(step), n = bossReq(step).length;
-  return `<div class="boss-dock" id="bossDock">
+  return `<div class="boss-dock" id="bossDock" data-expanded="false">
     <div class="boss-3d" id="boss3d"></div>
     <div class="boss-info">
       <div class="boss-ten">${esc(step.bossName || "BOSS")}</div>
+      <button type="button" class="boss-toggle small-button" aria-expanded="false" aria-controls="boss3d bossNoi">Hiện Boss</button>
       <div class="hp-label">Máu <strong id="hpText">${hp}%</strong><span class="boss-cau" id="bossCau">Câu 1/${n}</span></div>
       <div class="hp-track"><div class="hp-bar ${hp <= 34 ? "thap" : ""}" id="hpBar" style="width:${hp}%"></div></div>
       <div class="boss-gio" id="bossGio" ${bossXong(step) ? "hidden" : ""}>⏱ Còn <strong>${mmss(bossConLai(step))}</strong></div>
+      <p class="boss-progress" id="bossProgress" role="status"></p>
+      <details class="boss-missing" id="bossMissing"><summary id="bossMissingSummary">Nhiệm vụ còn thiếu</summary><ul id="bossMissingList"></ul></details>
       <div class="b3-noi" id="bossNoi"></div>
     </div>
   </div>`;
@@ -648,12 +661,13 @@ function bossTheoCau(step) {
 }
 
 function bossDanh(step, c) {
-  if (!bossVat || c.advanced || c.bonus) return;
-  bossVat.dmg(Math.round(100 / bossReq(step).length));
+  if (c.advanced || c.bonus) return;
+  bossVat?.dmg(Math.round(100 / bossReq(step).length));
   if (bossXong(step)) {
     clearInterval(bossDem); $("#bossGio")?.setAttribute("hidden", "");
-    setTimeout(() => { bossVat?.thang(); bossVat?.noi(bossLoi(step, "thang")); }, 650);
-  } else bossVat.noi(bossLoi(step, "trung"));
+    const currentBoss = bossVat;
+    setTimeout(() => { if (state && currentBoss === bossVat && activeStep() === step) { bossVat?.gap(false); bossVat?.thang(); bossVat?.noi(bossLoi(step, "thang")); } }, 650);
+  } else bossVat?.noi(bossLoi(step, "trung"));
 }
 
 function bossThua(step) {
@@ -665,6 +679,7 @@ function bossThua(step) {
 
 // Hết giờ: khung code rung rồi nứt vỡ, mọi ô làm bài bị khoá, hiện bảng thua + nút làm lại.
 function bossPha(step, hieuUng) {
+  CppTerminal.stopAll("Boss đã hết giờ. Chương trình được dừng và bài làm nháp được giữ."); CppRun.stop();
   $$(".boss-stage .challenge-card").forEach(card => {
     card.classList.add(hieuUng ? "bi-pha" : "da-pha");
     $$("input, textarea, select, button", card).forEach(x => { x.disabled = true; });
@@ -708,16 +723,22 @@ function refreshFooter(step) {
   if (next) next.disabled = !done;
   const req = step.challenges.filter(c => !c.advanced && !c.bonus);
   const cnt = $(".section-count");
-  if (cnt) cnt.textContent = `${req.filter(c => state.passed[c.id]).length}/${req.length} xong`;
+  if (cnt) cnt.textContent = `${step.kind === "boss" ? "Bạc: " : ""}${req.filter(c => state.passed[c.id]).length}/${req.length} xong`;
   if (step.kind === "boss") {
-    const hit = req.filter(c => state.passed[c.id]).length;
-    const hp = Math.round(100 * (1 - hit / req.length));
+    const progress = completionStatus(), { hp, done: hit, total } = progress.boss;
     if ($("#hpBar")) { $("#hpBar").style.width = `${hp}%`; $("#hpText").textContent = `${hp}%`; $("#hpBar").classList.toggle("thap", hp <= 34); }
     const cert = $("#certBtn");
-    if (cert) cert.disabled = !allRequiredDone();
-    if (note) note.textContent = allRequiredDone()
-      ? (isGold() ? "🥇 BOSS bị hạ + đủ nhiệm vụ nâng cao: chứng chỉ có huy hiệu vàng!" : "🏆 BOSS bị hạ! Mở chứng chỉ để lưu và nộp.")
-      : `Còn ${req.length - hit} đòn nữa để hạ BOSS.`;
+    if (cert) { cert.disabled = !progress.completed; cert.textContent = progress.gold ? "🥇 Nhận chứng chỉ vàng" : "🏆 Nhận chứng chỉ bạc"; }
+    if (note) note.textContent = progress.completed
+      ? (progress.gold ? "Đã đạt chứng chỉ vàng. Bạn có thể lưu và nộp." : "Đã đạt chứng chỉ bạc! Bạn có thể nhận ngay, không cần làm phần nâng cao.")
+      : progress.boss.completed ? "Đã hạ Boss. Hoàn thành các nhiệm vụ còn thiếu ở chặng trước để nhận bạc." : `Còn ${total - hit} nhiệm vụ bắt buộc để hạ Boss. Phần vàng là tùy chọn.`;
+    const label = $("#bossProgress"), missing = $("#bossMissing"), list = $("#bossMissingList");
+    if (label) label.textContent = progress.completed ? (progress.gold ? "Đã đạt vàng" : "Đã đạt bạc · vàng là tùy chọn") : `Bạc: ${hit}/${total} nhiệm vụ Boss`;
+    const remaining = progress.boss.completed ? progress.missing : progress.boss.missing;
+    if (missing) missing.hidden = remaining.length === 0;
+    if (list) list.innerHTML = remaining.map(c => `<li>${esc(c.stage === step.id ? c.title : c.stageTitle + ": " + c.title)}</li>`).join("");
+    if (progress.boss.completed) { clearInterval(bossDem); $("#bossGio")?.setAttribute("hidden", ""); }
+    window.dispatchEvent(new Event("cpp-progress-change"));
     return;
   }
   if (note) note.textContent = done ? "⭐ Hoàn thành chặng!" : "Làm xong các nhiệm vụ ở trên là bạn đi tiếp được nhé!";
@@ -817,8 +838,6 @@ function renderChallenge(c) {
 
   if (c.type === "code") {
     const draft = state.drafts[c.id] ?? c.starter;
-    const needInput = Boolean(c.tests && c.tests.some(t => t.input));
-    const inputVal = state.inputs[c.id] ?? (c.tests && c.tests[0] ? c.tests[0].input || "" : "");
     const tests = c.tests || [{ input: "", expected: c.expected }];
     const target = tests.length > 1
       ? `<table class="test-table"><tr><th>Nhập</th><th>Màn hình cần đạt</th></tr>
@@ -841,10 +860,8 @@ function renderChallenge(c) {
           <textarea class="code-editor" spellcheck="false" aria-label="Trình soạn thảo C++">${esc(draft)}</textarea></div>
         </div>
         <div class="console-shell">
-          ${needInput ? `<div class="console-toolbar"><span>📥 DỮ LIỆU NHẬP</span><small>số nguyên, cách nhau dấu cách</small></div>
-            <input class="stdin-box" type="text" spellcheck="false" aria-label="Dữ liệu nhập" value="${esc(inputVal)}" />` : ""}
           <div class="console-toolbar"><span>🖥 MÀN HÌNH</span></div>
-          <pre class="console-output">Bấm “▶ Chạy” để xem.</pre>
+          <div class="console-output">Bấm “▶ Chạy” để xem.</div>
         </div>
       </div>`;
     actions = `<button class="secondary-button" data-act="run" type="button">▶ Chạy</button>
@@ -934,7 +951,7 @@ function renderChallenge(c) {
             ${coBoNho ? `<div class="dc-panel dc-mem"><div class="dc-ph"><span>Bộ nhớ · các biến</span></div>
               <table><thead><tr><th>Tên biến</th><th>Kiểu</th><th>Giá trị</th></tr></thead><tbody></tbody></table>
               <div class="dc-empty">Chưa có biến nào. Bấm “Chạy từng dòng”.</div></div>` : ""}
-            <div class="dc-panel"><div class="dc-ph"><span>Màn hình</span></div><pre class="run-out dc-screen"></pre></div>
+            <div class="dc-panel"><div class="dc-ph"><span>Màn hình</span></div><div class="run-out dc-screen"></div></div>
             <div class="dc-explain"></div>
             <div class="run-compare result-line hidden" role="status"></div>
           </div>
@@ -1119,7 +1136,14 @@ function bindChallenge(c) {
   }
 
   if (c.type === "code") {
-    const ed = $(".code-editor", card), gut = $(".gutter", card), out = $(".console-output", card), stdin = $(".stdin-box", card);
+    const ed = $(".code-editor", card), gut = $(".gutter", card), out = $(".console-output", card);
+    const terminal = CppTerminal.mount(out);
+    const lock = () => {
+      const buttons = [...card.querySelectorAll("button")].filter(b => !b.closest(".interactive-console"));
+      const previous = buttons.map(b => b.disabled), readOnly = ed.readOnly;
+      buttons.forEach(b => b.disabled = true); ed.readOnly = true;
+      return () => { if (card.isConnected && state && !lockedByBoss() && CppCloud.allowed()) { buttons.forEach((b, i) => b.disabled = previous[i]); ed.readOnly = readOnly; } };
+    };
     const sync = () => {
       const n = ed.value.split("\n").length;
       ed.rows = Math.max(6, n + 1);
@@ -1128,7 +1152,6 @@ function bindChallenge(c) {
     };
     sync();
     ed.addEventListener("input", () => { state.drafts[c.id] = ed.value; save(); sync(); result(card, "info", "Mã đã thay đổi. Bấm Kiểm tra test case để chấm lại."); });
-    if (stdin) stdin.addEventListener("input", () => { result(card, "info", "Dữ liệu nhập đã thay đổi. Bấm Chạy để xem kết quả hoặc Kiểm tra test case để chấm lại."); });
     guardTyping(ed);
     // Chèn chữ bằng insertText để Ctrl+Z (hoàn tác) vẫn dùng được; xoá trước `back` ký tự nếu cần.
     const put = (text, back = 0) => {
@@ -1148,6 +1171,7 @@ function bindChallenge(c) {
       }
     });
     ed.addEventListener("keydown", e => {
+      if (ed.readOnly) return;
       if (e.key === "Tab") { e.preventDefault(); put("    "); }
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('[data-act="run"]', card).click(); return; }
       if (e.key === "Enter" && !e.shiftKey && !e.altKey) {
@@ -1157,25 +1181,31 @@ function bindChallenge(c) {
         put("\n" + line.match(/^ */)[0] + (/\{\s*$/.test(line) ? "    " : ""));
       }
     });
-    stdin?.addEventListener("input", () => { state.inputs[c.id] = stdin.value; save(); });
     $('[data-act="reset-code"]', card).addEventListener("click", () => {
       ed.value = c.starter; state.drafts[c.id] = c.starter; save(); sync();
-      out.textContent = "Đã trả về code ban đầu."; out.classList.remove("error");
+      terminal.reset("Đã trả về code ban đầu.");
     });
     $('[data-act="run"]', card).addEventListener("click", async () => {
-      if(cppBusy||!CppCloud.allowed())return;cppBusy=true;const buttons=[...card.querySelectorAll("button")];buttons.forEach(b=>b.disabled=true);
-      try{const invalid=inputError(c,stdin?stdin.value:"");const r=invalid?{ok:false,output:"",error:invalid}:await runCpp(ed.value,stdin?stdin.value:"");if(state&&CppCloud.allowed()&&card.isConnected){showRun(out,r);result(card,r.ok?"info":"bad",r.ok?"Đã chạy với dữ liệu bạn nhập. Bấm Kiểm tra test case để chấm mã C++.":r.error)}}finally{cppBusy=false;buttons.forEach(b=>b.disabled=false)}
+      if(cppBusy||!CppCloud.allowed()||lockedByBoss())return;cppBusy=true;const unlock=lock(),code=ed.value;
+      try {
+        const invalid=frameError(code)||functionOrderError(code);
+        const r=invalid?{ok:false,output:"",error:invalid}:await terminal.run(code,{min:c.inputSpec?.min,formatError:error=>/Output limit/.test(error)?"In quá nhiều dữ liệu. Giảm số lần lặp hoặc số dòng in.":friendlyError(error,code)});
+        if(state&&CppCloud.allowed()&&card.isConnected&&!card.closest("[hidden]")&&!lockedByBoss()){
+          if(invalid)showRun(out,r);
+          if(r.ok){state.inputs[c.id]=r.input||"";save();}
+          result(card,r.cancelled?"info":r.ok?"info":"bad",r.cancelled?r.error:r.ok?"Đã chạy xong. Bấm Kiểm tra test case để chấm mã C++.":r.error);
+        }
+      } finally {cppBusy=false;unlock();}
     });
     $(' [data-act="check"]'.trim(), card).addEventListener("click", async ev => {
-      if(cppBusy||!CppCloud.allowed())return;cppBusy=true;const buttons=[...card.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
+      if(cppBusy||!CppCloud.allowed()||lockedByBoss())return;cppBusy=true;const unlock=lock();
       try {
       attempt(c.id);
-      const v = await checkCode(c, ed.value, stdin ? stdin.value : "");
-      if(!state||!CppCloud.allowed()||!card.isConnected)return;
-      if (v.input != null && stdin) stdin.value = v.input;
+      const v = await checkCode(c, ed.value);
+      if(!state||!CppCloud.allowed()||!card.isConnected||card.closest("[hidden]")||lockedByBoss())return;
       showRun(out, v.run);
       if (v.ok) pass(c, card, v.msg, card.querySelector('[data-act="check"]')); else miss(card, v.msg);
-      }finally{cppBusy=false;buttons.forEach(b=>b.disabled=false)}
+      }finally{cppBusy=false;unlock();}
     });
   }
 
@@ -1348,15 +1378,17 @@ function bindChallenge(c) {
     const tr = dcTrace(c), real = Boolean(c.run && c.run.real);
     const q = sel => $(sel, card);
     const host = q(".dc-code"), out = q(".dc-screen"), cmp = q(".run-compare"), ex = q(".dc-explain");
+    const terminal = CppTerminal.mount(out, { guided: true });
     const memB = q(".dc-mem tbody"), memE = q(".dc-empty");
     const bStep = q('[data-act="dc-step"]'), bAll = q('[data-act="dc-all"]'), bReset = q('[data-act="dc-reset"]');
     const bReal = q('[data-act="dc-real"]'), bLock = q('[data-act="dc-lock"]');
-    let si = 0, busy = false;
+    let si = 0, busy = false, generation = 0, stepToken = null;
     const lines = () => $$(".cl", host);
     const mark = () => { lines().forEach(l => l.classList.remove("now")); if (!real && si < tr.length) lines()[tr[si].l - 1]?.classList.add("now"); };
     const bat = on => [bStep, bAll, bReal].forEach(b => { if (b) b.disabled = !on; });
     const lamLai = () => {
-      si = 0; host.innerHTML = codeLines(c.code, c.focus || [], ""); out.textContent = ""; out.classList.remove("error");
+      generation++; busy = false; stepToken = null; terminal.reset();
+      si = 0; host.innerHTML = codeLines(c.code, c.focus || [], "");
       (c.run?.skip || []).forEach(n => lines()[n - 1]?.classList.add("skip"));
       if (memB) { memB.innerHTML = ""; memE.classList.remove("hidden"); }
       cmp.className = "run-compare result-line hidden";
@@ -1371,6 +1403,7 @@ function bindChallenge(c) {
       lamLai();
     };
     const ketThuc = () => {
+      terminal.finish();
       bat(false); mark();
       const g = state.choices[c.id], ok = g === ans;
       const ke = card.nextElementSibling && card.nextElementSibling.dataset.dc ? card.nextElementSibling : null;
@@ -1386,25 +1419,36 @@ function bindChallenge(c) {
         c._quiet = false;
       }
     };
-    const buoc = () => {
-      if (si >= tr.length) return;
+    const buoc = async () => {
+      if (stepToken !== null || si >= tr.length || !card.isConnected || card.closest("[hidden]")) return false;
+      const token = generation; stepToken = token; bat(false);
+      try {
       const t = tr[si], ln = lines()[t.l - 1];
       ln?.classList.add("ran");
+      if (t.out) terminal.append(t.out);
+      if (t.nhap != null) {
+        ex.innerHTML = `<strong>Dòng ${t.l}.</strong> <code>${esc(c.code.split("\n")[t.l - 1]?.trim() || "cin")}</code>`;
+        const value = await terminal.prompt({ expected: t.nhap, line: t.l, kind: /^[+-]?\d+$/.test(String(t.nhap)) ? "integer" : "text", min: -2147483648, max: 2147483647 });
+        if (value === null || token !== generation || !card.isConnected || card.closest("[hidden]")) return false;
+        terminal.append(value + "\n");
+      }
       if (t.mem && memB) {
         memE.classList.add("hidden");
         let row = [...memB.rows].find(r => r.cells[0].textContent === t.mem[0]);
         if (!row) { row = memB.insertRow(); row.innerHTML = `<td>${esc(t.mem[0])}</td><td>${esc(t.mem[1])}</td><td class="v"></td>`; }
         row.cells[2].textContent = t.mem[2]; row.classList.add("flash"); setTimeout(() => row.classList.remove("flash"), 800);
       }
-      if (t.out) out.append(t.out);
-      // Bước cin: số người dùng gõ hiện tô vàng trên Màn hình (giống ô nhập của Programiz), rồi xuống dòng.
-      if (t.nhap != null) { const go = document.createElement("span"); go.className = "dc-typed"; go.textContent = t.nhap; out.append(go, "\n"); }
       // Bước điều kiện (if, for): tô dòng xanh khi đúng, đỏ khi sai, và ghi nhãn trong lời giải thích.
       if (t.kq) { lines().forEach(x => x.classList.remove("dk-t", "dk-f")); ln?.classList.add(t.kq === "t" ? "dk-t" : "dk-f"); }
       const nhan = t.kq ? `<span class="dk-nhan ${t.kq}">${t.kq === "t" ? "✓ Điều kiện đúng" : "✗ Điều kiện sai"}</span> ` : "";
       ex.innerHTML = `<strong>Dòng ${t.l}.</strong> ${nhan}${t.why || ""}`;
       si++; mark();
       if (si >= tr.length) ketThuc();
+      return true;
+      } finally {
+        if (stepToken === token) stepToken = null;
+        if (token === generation && !busy) bat(si < tr.length);
+      }
     };
     $$(`input[name="${c.id}"]`, card).forEach(i => i.addEventListener("change", () => {
       $$(".dc-opt", card).forEach(l => l.classList.toggle("guess", l.contains(i)));
@@ -1429,15 +1473,15 @@ function bindChallenge(c) {
     bStep?.addEventListener("click", buoc);
     bAll?.addEventListener("click", async () => {
       if (busy) return; busy = true; bat(false);
-      try { while (si < tr.length) { buoc(); await new Promise(r => setTimeout(r, 750)); } } finally { busy = false; }
+      const token = generation;
+      try { while (si < tr.length && token === generation) { if (!await buoc()) break; await new Promise(r => setTimeout(r, 750)); } } finally { if (token === generation) { busy = false; bat(si < tr.length); } }
     });
-    bReset?.addEventListener("click", () => { if (!busy) lamLai(); });
+    bReset?.addEventListener("click", lamLai);
     bReal?.addEventListener("click", async () => {
       if (busy) return; busy = true; bat(false);
       try {
         const res = await runCpp(c.code, c.input || "");
-        out.textContent = res.ok ? (res.output || "(Chương trình chạy xong nhưng không in gì.)") : `⚠ LỖI\n${res.error}`;
-        out.classList.toggle("error", !res.ok);
+        terminal.showResult(res);
         ex.innerHTML = c.realWhy || "";
         ketThuc();
       } finally { busy = false; }
@@ -1502,6 +1546,7 @@ function updateBugs(c, card, code) {
 }
 
 function showRun(out, r) {
+  const terminal = CppTerminal.get(out); if (terminal) { terminal.showResult(r); return; }
   out.classList.toggle("error", !r.ok);
   out.textContent = r.ok ? (r.output || "(Chương trình chạy xong nhưng không in gì ra.)") : `⚠ LỖI\n${r.error}`;
 }
@@ -1518,26 +1563,8 @@ function firstDiff(actual, expected) {
   return "";
 }
 
-// These lessons read integers. Infer arity only from consistent authored tests.
-function inputError(c, input) {
-  const samples = (c.tests || []).map(t => String(t.input || "").trim()).filter(Boolean);
-  if (!samples.length || !samples.every(s => s.split(/\s+/).every(t => /^[+-]?\d+$/.test(t)))) return "";
-  const tokens = String(input ?? "").trim().split(/\s+/).filter(Boolean);
-  if (!tokens.length) return "Dữ liệu nhập đang trống. Hãy nhập số nguyên trước khi chạy hoặc kiểm tra.";
-  if (tokens.some(t => !/^[+-]?\d+$/.test(t))) return "Dữ liệu nhập phải là số nguyên, cách nhau bằng dấu cách. Không nhập chữ hoặc số thập phân.";
-  const values = tokens.map(Number);
-  if (values.some(n => !Number.isSafeInteger(n) || n < -2147483648 || n > 2147483647)) return "Số nhập vượt phạm vi kiểu int. Hãy nhập số từ -2147483648 đến 2147483647.";
-  const lengths = samples.map(s => s.split(/\s+/).length);
-  if (lengths.every(n => n === lengths[0]) && tokens.length !== lengths[0]) return `Bài này cần đúng ${lengths[0]} số nguyên; bạn đang nhập ${tokens.length} số.`;
-  if (!lengths.every(n => n === lengths[0]) && samples.every(s => { const a = s.split(/\s+/).map(Number); return a[0] >= 0 && a.length === a[0] + 1; }) && (values[0] < 0 || tokens.length !== values[0] + 1)) return "Số đầu tiên là n; hãy nhập đúng n số tiếp theo.";
-  if (c.inputSpec?.min != null && values.some(n => n < c.inputSpec.min)) return `Dữ liệu nhập phải từ ${c.inputSpec.min} trở lên.`;
-  return "";
-}
-
-async function checkCode(c, code, currentInput) {
-  const invalid = inputError(c, currentInput);
-  if (invalid) return { ok: false, run: { ok: false, output: "", error: invalid }, msg: invalid };
-  const tests = c.tests || [{ input: currentInput, expected: c.expected }];
+async function checkCode(c, code) {
+  const tests = c.tests || [{ input: "", expected: c.expected }];
   if (!tests.length || tests.some(t => t.expected == null)) {
     const msg = "Nhiệm vụ chưa có đủ test case để chấm. Hãy báo giáo viên.";
     return { ok: false, run: { ok: false, output: "", error: msg }, msg };
@@ -1562,12 +1589,7 @@ async function checkCode(c, code, currentInput) {
   if (c.bugs && !c.bugs.every(b => b.fixed(code))) {
     return { ok: false, run: lastRun, msg: "Màn hình đúng rồi, nhưng vẫn còn bọ trốn trong code! Xem con 🐛 nào chưa nổ nhé." };
   }
-  if ((c.tests || []).some(t => t.input)) {
-    const currentRun = await runCpp(code, currentInput);
-    if (!currentRun.ok) return { ok: false, run: currentRun, msg: "Mã đã qua các test case, nhưng chưa chạy được với dữ liệu bạn nhập. Đọc lỗi trong ô MÀN HÌNH rồi sửa nhé." };
-    return { ok: true, run: currentRun, msg: `Mã C++ đạt ${tests.length} test case trong bảng. MÀN HÌNH đang hiển thị lần chạy với dữ liệu bạn nhập.` };
-  }
-  return { ok: true, run: lastRun, msg: c.why || `Mã C++ đạt ${tests.length} test case. Màn hình khớp mẫu.` };
+  return { ok: true, run: lastRun, msg: c.why || `Mã C++ đạt ${tests.length} test case. Màn hình đang hiển thị test case cuối cùng; bấm Chạy để thử với dữ liệu của bạn.` };
 }
 
 function attempt(id) { state.attempts[id] = (state.attempts[id] || 0) + 1; save(); }
@@ -1579,7 +1601,7 @@ function nextOpenCard(card) {
 }
 
 function pass(c, card, msg, btn, starNow = false) {
-  if(!state||!CppCloud.allowed())return;
+  if(!state||!CppCloud.allowed()||lockedByBoss())return;
   const first = !state.passed[c.id];
   let extra = "";
   if (first) {
@@ -1824,7 +1846,7 @@ function boot() {
   renderAll(true);CPPAccount.controls();
 }
 
-window.CPP_ENGINE={remoteState(){if(!CppCloud.allowed())return;load(CPPAccount.student());renderAll(true)},profileChanged(){if(!state||!CppCloud.allowed())return;state.student=CPPAccount.student();updateTop()},dispose(){CppRun.stop();clearTimeout(bitTimer);state=null}};
+window.CPP_ENGINE={progress:completionStatus,certificate:openCertificate,remoteState(){if(!CppCloud.allowed())return;load(CPPAccount.student());renderAll(true)},profileChanged(){if(!state||!CppCloud.allowed())return;state.student=CPPAccount.student();updateTop()},dispose(){CppTerminal.stopAll();CppRun.stop();clearTimeout(bitTimer);clearInterval(bossDem);bossTheo?.disconnect();bossVat?.huy?.();bossVat=null;state=null}};
 if(CppCloud.allowed())boot();
 
 })();

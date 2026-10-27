@@ -368,4 +368,58 @@ body:has(.stage-page) .site-footer p { display: none !important; }
   .boss-ten { font-size: .98rem; }
   .b3-noi { font-size: .82rem; padding: 5px 9px; }
 }
+
+/* Keep Boss beside the work, within the lesson's actual scrolling viewport. */
+.boss-stage { overflow: visible; }
+@supports (overflow: clip) { .boss-stage { overflow: clip; } }
+.boss-layout { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 24px; align-items: stretch; }
+.boss-work { grid-column: 1; grid-row: 1; min-width: 0; }
+.boss-sidebar { grid-column: 2; grid-row: 1; min-width: 0; }
+.boss-sidebar .boss-dock { position: sticky; top: 12px; display: block; padding: 12px; margin: 0; max-height: calc(100dvh - 24px); overflow-y: auto; }
+.boss-sidebar .boss-3d { margin: 0 auto 8px; }
+.boss-sidebar .boss-ten { font-size: 1.05rem; }
+.boss-sidebar .hp-label { flex-wrap: wrap; gap: 4px 8px; }
+.boss-toggle { display: none; }
+.boss-progress { font-size: .85rem; font-weight: 800; margin: 10px 0 0; }
+.boss-missing { margin-top: 8px; font-size: .82rem; }
+.boss-missing summary { cursor: pointer; padding: 8px 0; }
+.boss-missing ul { padding-left: 20px; margin: 4px 0; }
+.boss-missing li + li { margin-top: 6px; }
+.boss-work .advanced-section { margin-top: 28px; border-top: 2px dashed #d7b570; padding-top: 18px; }
+.interactive-console { font-family: "Cascadia Code", Consolas, monospace; }
+.interactive-console.waiting-input { cursor: text; }
+.terminal-transcript { white-space: pre-wrap; overflow-wrap: anywhere; }
+.terminal-input-row { display: inline-block; position: relative; max-width: 100%; padding: 0; margin: 0; vertical-align: baseline; white-space: normal; scroll-margin-top: 200px; scroll-margin-bottom: 90px; }
+.terminal-input { box-sizing: content-box; width: 1ch; min-width: 1ch; max-width: 100%; height: 1.5em; min-height: 0; padding: 0; margin: 0; border: 0; border-radius: 0; appearance: none; background: transparent; color: inherit; font: inherit; line-height: inherit; vertical-align: baseline; caret-color: currentColor; }
+.terminal-input:focus-visible { outline: 0; box-shadow: 0 1px #f4c258; }
+.terminal-pointer { position: absolute; left: -10px; top: calc(100% + 2px); width: 32px; height: 32px; overflow: visible; fill: none; stroke: #f4c258; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.terminal-stop { min-height: 44px; border-radius: 7px; padding: 8px 10px; font: 700 .82rem/1.4 "Segoe UI", sans-serif; cursor: pointer; }
+.terminal-stop { background: #25374c; color: #f8fafc; border: 1px solid #8da7c3; }
+.terminal-stop:focus-visible { outline: 3px solid #ffcc44; outline-offset: 3px; }
+.terminal-guide { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; margin-top: 12px; white-space: normal; }
+.waiting-input .terminal-guide { margin-top: 40px; }
+.terminal-help, .terminal-error { margin: 0; font: .84rem/1.5 "Segoe UI", sans-serif; }
+.terminal-help { color: #dbe9ff; }
+.terminal-help:empty { display: none; }
+.waiting-input .terminal-help { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.terminal-error { grid-column: 1 / -1; color: #ffd0b5; font-weight: 700; }
+.terminal-stop { grid-column: 2; grid-row: 1; align-self: start; }
+.terminal-input-row[hidden], .terminal-error[hidden], .terminal-stop[hidden] { display: none !important; }
+.dc-screen .terminal-guide:has(.terminal-help:empty):not(:has(.terminal-error:not([hidden]))) { display: none; }
+.advanced-note { color: var(--muted); margin-top: -4px; }
+.boss-toggle:focus-visible, .boss-missing summary:focus-visible { outline: 3px solid #5640a5; outline-offset: 3px; }
+@media (max-width: 1099px) {
+  .boss-layout { display: block; }
+  .boss-sidebar { position: sticky; top: 4px; z-index: 40; margin-bottom: 18px; }
+  .boss-sidebar .boss-dock { position: static; max-height: min(65dvh, 440px); padding: 8px 12px; border-radius: 16px; }
+  .boss-sidebar .boss-3d { width: 96px; height: 92px; }
+  .boss-sidebar .boss-ten { padding-right: 130px; min-height: 44px; display: flex; align-items: center; }
+  .boss-toggle { display: block; position: absolute; top: 10px; right: 14px; min-height: 44px; }
+  .boss-sidebar .boss-dock[data-expanded="false"] .boss-3d,
+  .boss-sidebar .boss-dock[data-expanded="false"] .b3-noi { display: none; }
+  .boss-sidebar .boss-dock[data-expanded="false"] .boss-missing:not([open]) { margin-top: 0; }
+  .boss-sidebar .boss-gio { margin-top: 4px; padding: 2px 8px; font-size: .8rem; }
+  .boss-sidebar .boss-gio strong { font-size: .9rem; }
+  .boss-progress { margin-top: 4px; }
+}
 @media (prefers-reduced-motion: reduce) { .challenge-card.bi-pha, .boss-gio.gap, .boss-thua-icon, .b3-emoji { animation: none !important; } }

@@ -1,16 +1,16 @@
 import * as THREE from 'three';
-import {CATALOG,GAME_TYPES,goalFor,lv,MAX_LEVEL} from './arcade-rules.js?v=v3-20261019';
+import {CATALOG,GAME_TYPES,goalFor,lv,MAX_LEVEL,sessionSeconds} from './arcade-rules.js?v=v3-20261027';
 import {createArt} from './arcade-art.js?v=v3-20261019';
-import {setupAction} from './arcade-action-games.js?v=v3-20261019';
-import {setupBoard} from './arcade-board-games.js?v=v3-20261019';
-import {setupClassic,CLASSIC_TYPES} from './arcade-classic-games.js?v=v3-20261019';
+import {setupAction} from './arcade-action-games.js?v=v3-20261027';
+import {setupBoard} from './arcade-board-games.js?v=v3-20261027';
+import {setupClassic,CLASSIC_TYPES} from './arcade-classic-games.js?v=v3-20261027';
 
 // A single bounded session. Arcade scores never write academic XP or stage completion.
 export function stationGame({theme,seed=1,gameType,seconds,level=3,title='',sound=true,onEnter,onCancel,onStart=()=>true,onFinish=()=>{}}){
- const type=CATALOG[gameType]?gameType:GAME_TYPES[Math.abs(seed)%GAME_TYPES.length],config=CATALOG[type],LV=lv(level),GOAL=goalFor(type,LV),limit=Math.min(120,Math.max(60,seconds||config.seconds)),action=['jump','flight'].includes(type),actionModule=['jump','flight','maze','frogger','bowling'].includes(type);
+ const type=CATALOG[gameType]?gameType:GAME_TYPES[Math.abs(seed)%GAME_TYPES.length],config=CATALOG[type],LV=lv(level),GOAL=goalFor(type,LV),limit=sessionSeconds(seconds||config.seconds),action=['jump','flight'].includes(type),actionModule=['jump','flight','maze','frogger','bowling'].includes(type);
  const previousFocus=document.activeElement,layer=document.createElement('section');layer.className='q-game q-arcade';layer.setAttribute('role','dialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-label',config.name);
  layer.innerHTML='<header><div><strong></strong><small></small></div><nav><button class="game-sound" aria-label="Bật hoặc tắt âm thanh"></button><button class="game-enter">Vào bài</button><button class="game-back" aria-label="Về đảo">×</button></nav></header><div class="game-scene"><div class="game-hud"><p class="game-status" role="status"></p><span class="game-timer" aria-label="Thời gian còn lại"></span></div><div class="game-start"><h2></h2><p class="game-level"></p><p class="game-goal"></p><p class="game-hint"></p><button class="game-play">Bắt đầu</button></div></div><footer class="game-controls"></footer>';
- layer.querySelector('header strong').textContent=config.name;layer.querySelector('small').textContent=(title?title+' · ':'')+'Cấp '+LV+'/'+MAX_LEVEL;layer.querySelector('h2').textContent=config.name;layer.querySelector('.game-level').textContent='Cấp '+LV+' / '+MAX_LEVEL+(LV<MAX_LEVEL?' · bài sau khó hơn một chút':' · cấp cao nhất');layer.querySelector('.game-goal').textContent=GOAL;layer.querySelector('.game-hint').textContent=config.hint;document.body.append(layer);
+ layer.querySelector('header strong').textContent=config.name;layer.querySelector('small').textContent=(title?title+' · ':'')+'Tối đa '+limit+' giây';layer.querySelector('h2').textContent=config.name;layer.querySelector('.game-level').textContent='Cấp '+LV+' / '+MAX_LEVEL+' · '+limit+' giây, gồm cả thử lại';layer.querySelector('.game-goal').textContent=GOAL;layer.querySelector('.game-hint').textContent=config.hint;document.body.append(layer);
  const host=layer.querySelector('.game-scene'),panel=layer.querySelector('.game-start'),play=layer.querySelector('.game-play'),status=layer.querySelector('.game-status'),timer=layer.querySelector('.game-timer'),controls=layer.querySelector('.game-controls'),held=new Set(),listeners=[];
  let closed=false,active=false,won=false,ended=false,starting=false,firstStart=0,attempts=0,last=0,raf=0,transition=0,module,renderer,audio,visibilityMuted=false,result=null,frameAverage=16,qualityReduced=false;
  const scene=new THREE.Scene(),art=createArt(scene,theme),camera=new THREE.OrthographicCamera(-10,10,5,-5,.1,100),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;

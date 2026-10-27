@@ -11,9 +11,9 @@
  */
 import * as THREE from "three";
 import {upgradeActor,addLandmark} from "./blender-art.js?v=v3-20261019";
-import {stationGame} from './quest-games.js?v=v3-20261019';
-import {assignStation,startStation,finishStation} from './arcade-selection.js?v=v3-20261019';
-import {levelFor} from './arcade-rules.js?v=v3-20261019';
+import {stationGame} from './quest-games.js?v=v3-20261027';
+import {assignStation,startStation,finishStation} from './arcade-selection.js?v=v3-20261027';
+import {levelFor} from './arcade-rules.js?v=v3-20261027';
 // Cấp game của một trạm (13/10/2026): bài sau, chặng sau khó hơn; tính theo vị trí bài trong cả khoá.
 function capTram(i){try{const C=window.PortalCloud,ds=window.STANDALONE?.lessons||[],key=C?.packet?.lesson?.lesson_key,me=ds.find(x=>x.key===key),pos=Number(me?.position??C?.packet?.lesson?.position)||1,max=Math.max(pos,...ds.map(x=>Number(x.position)||0));return levelFor(pos,max,i,B.chang.length);}catch{return 3;}}
 

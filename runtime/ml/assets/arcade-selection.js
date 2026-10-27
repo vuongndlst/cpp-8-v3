@@ -1,10 +1,10 @@
-import {CATALOG,GAME_TYPES,shuffleBag} from './arcade-rules.js?v=v3-20261019';
+import {CATALOG,GAME_TYPES,shuffleBag,sessionSeconds} from './arcade-rules.js?v=v3-20261027';
 const randomSeed=()=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0];};
 // Selection is persisted before Start. A reload cannot re-roll a station.
 export async function assignStation(C,stage){const S=window.LocalLearning;if(!C?.profile?.id||!S||!C.packet||!C.allowed())return null;const pid=C.profile.id,lid=C.packet.lesson.lesson_key,key=lid+':'+stage;
  const assign=()=>{if(!C.allowed())return null;
  let book=S.read('arcade:'+pid,{version:1,assignments:{},queue:[],history:[]});book.assignments||={};book.queue||=[];book.history||=[];
- if(book.assignments[key]&&CATALOG[book.assignments[key].type])return book.assignments[key];
+ if(book.assignments[key]&&CATALOG[book.assignments[key].type]){const entry=book.assignments[key],seconds=sessionSeconds(entry.seconds);if(entry.seconds!==seconds){entry.seconds=seconds;S.write('arcade:'+pid,book);}return entry;}
  book.queue=book.queue.filter(t=>GAME_TYPES.includes(t)); // hàng đợi cũ có thể còn trò đã bỏ khỏi kho 10 trò
  if(!book.queue.length)book.queue=shuffleBag(randomSeed(),book.history);
  // Across a bag boundary avoid the last two games even if an older queue was saved.

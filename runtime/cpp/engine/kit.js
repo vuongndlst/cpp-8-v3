@@ -157,11 +157,11 @@
       <div class="tim-them">${links.map(([u, t]) => `<a href="${u}" target="_blank" rel="noopener">${t} ↗</a>`).join("")}</div>`,
     sauTab: kiem => `<div class="mission-row" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">
       ${["Bối cảnh", "Đoán rồi chạy", kiem, "Ghi nhớ", "Luyện tập", "Phản tư"].map((t, i) => `<div>${i + 1}<small>${t}</small></div>`).join("")}</div>`,
-    // Hướng dẫn tab Đoán rồi chạy. coNhap: chương trình có cin (số khách gõ hiện tô vàng trên Màn hình).
+    // Hướng dẫn tab Đoán rồi chạy. coNhap: có bước chờ cin ngay trên Màn hình.
     huongDanDoan: (n, coNhap = false) => `<p>Bạn sẽ gặp ${n} lần chạy. Mỗi lần làm hai bước:</p>
       <ol><li><strong>Đoán:</strong> đọc code ở khung bên trái, rồi chọn phương án bạn nghĩ là đúng. Bấm <strong>Chốt dự đoán</strong>.</li>
       <li><strong>Chạy để kiểm tra:</strong> bấm <strong>▶ Chạy từng dòng</strong>. Mỗi lần bấm, máy thực hiện một bước: dòng đang chạy có mũi tên màu cam, bảng <strong>Bộ nhớ</strong> cho biết giá trị từng biến, chữ in ra hiện dần ở khung <strong>Màn hình</strong>, và phần giải thích cho biết máy vừa làm gì.</li></ol>
-      ${coNhap ? `<p>Khi gặp câu lệnh <code>cin</code>, máy dừng và chờ người dùng gõ số. Số được gõ hiện <span class="dc-typed" style="background:#fde68a;border-radius:4px;padding:0 4px;font-weight:700">tô vàng</span> trên Màn hình, giống khi chạy trên Programiz.</p>` : ""}
+      ${coNhap ? `<p>Khi gặp <code>cin</code>, con trỏ nhấp nháy ngay sau câu dẫn trên Màn hình. Nhập số theo tình huống rồi nhấn <strong>Enter</strong> để chạy tiếp.</p>` : ""}
       <p>Đoán sai không bị trừ điểm. Chạy xong, bấm <strong>Tiếp tục</strong> để sang lần sau.</p>`,
     bonBuoc: dong => `<p>Làm theo <strong>4 bước của lập trình viên</strong>:</p><ol class="think-steps">${dong.map(([a, b]) => `<li><strong>${a}:</strong> ${b}</li>`).join("")}</ol>`,
     tuCham: "Với mỗi câu dưới đây, chọn mức đúng với bạn lúc này. Thầy dùng kết quả để biết cần giảng lại phần nào cho cả lớp.",
