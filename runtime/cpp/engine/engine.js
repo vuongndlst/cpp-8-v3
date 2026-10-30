@@ -857,7 +857,7 @@ function renderChallenge(c) {
           <div class="editor-toolbar"><span>main.cpp</span>
             <button type="button" class="small-button" data-act="reset-code">↺ Code ban đầu</button></div>
           <div class="editor-body"><pre class="gutter" aria-hidden="true"></pre>
-          <textarea class="code-editor" spellcheck="false" aria-label="Trình soạn thảo C++">${esc(draft)}</textarea></div>
+          <textarea class="code-editor" wrap="off" spellcheck="false" aria-label="Trình soạn thảo C++">${esc(draft)}</textarea></div>
         </div>
         <div class="console-shell">
           <div class="console-toolbar"><span>🖥 MÀN HÌNH</span></div>
@@ -1144,9 +1144,11 @@ function bindChallenge(c) {
       buttons.forEach(b => b.disabled = true); ed.readOnly = true;
       return () => { if (card.isConnected && state && !lockedByBoss() && CppCloud.allowed()) { buttons.forEach((b, i) => b.disabled = previous[i]); ed.readOnly = readOnly; } };
     };
+    // Retain the starter's original editor size; longer drafts scroll inside it.
+    ed.rows = Math.max(6, String(c.starter || "").split("\n").length + 1);
+    ed.closest(".editor-body").style.setProperty("--cpp-editor-rows", ed.rows);
     const sync = () => {
       const n = ed.value.split("\n").length;
-      ed.rows = Math.max(6, n + 1);
       gut.textContent = Array.from({ length: Math.max(n, ed.rows) }, (_, i) => i + 1).join("\n");
       updateBugs(c, card, ed.value);
     };

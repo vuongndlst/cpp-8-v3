@@ -1,7 +1,7 @@
 window.CppRun = (() => {
   "use strict";
   const workerURL = new URL("cpp-worker.js", document.currentScript.src), waiting = new Map();
-  workerURL.searchParams.set("v", new URL(document.currentScript.src).searchParams.get("v") || "20261027-inlinecin");
+  workerURL.searchParams.set("v", new URL(document.currentScript.src).searchParams.get("v") || "20261030-editor-scroll");
   let worker = null, id = 0;
   function stop(message = "Đã dừng chương trình.", cancelled = true) {
     worker?.terminate(); worker = null;

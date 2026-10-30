@@ -203,13 +203,14 @@ pre.sb, pre.sb-fallback { margin: 0; padding: 6px 10px; border-radius: 8px; back
 @keyframes crawl { 50% { transform: translateX(2px) rotate(2deg); } }
 
 /* ----- trình soạn code ----- */
-.editor-body { display: flex; background: #0f1725; }
+.editor-body { display: flex; background: #0f1725; height: calc(var(--cpp-editor-rows, 6) * 1.32rem + 32px); overflow: hidden; }
 .gutter {
   margin: 0; padding: 16px 8px 16px 12px; min-width: 40px; text-align: right; color: #5d6f8c;
   background: #0c1320; line-height: 1.5; font-size: .88rem; overflow: hidden; user-select: none;
   font-family: "Cascadia Code", Consolas, monospace;
+  height: 100%; flex-shrink: 0;
 }
-.editor-body .code-editor { flex: 1; min-width: 0; white-space: pre; overflow-x: auto; }
+.editor-body .code-editor { flex: 1; min-width: 0; height: 100%; white-space: pre; overflow: auto; }
 .stdin-box {
   width: 100%; display: block; border: 0; border-bottom: 1px solid #26364f; padding: 10px 14px;
   background: #142033; color: #ffe6a6; font-family: "Cascadia Code", Consolas, monospace; resize: vertical;

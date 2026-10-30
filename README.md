@@ -1,5 +1,11 @@
 # cpp-8-v3 — web học C++ lớp 8 (bản V3)
 
+## Khung soạn code · 20261030-editor-scroll
+
+Khung giữ bố cục và kích thước ban đầu theo mã khung của từng bài. Chương trình dài cuộn ngang và dọc bên trong ô; không tăng chiều cao theo bản nháp. Số dòng, chữ màu và con trỏ được đồng bộ khi cuộn hoặc đổi kích thước. Sang dòng ngắn đủ chỗ thì trả về đầu dòng; nội dung và lịch sử hoàn tác được giữ nguyên. Áp dụng chung cả sáu bài.
+
+Kiểm tra: `node _kiem_tra/editor_scroll_browser.cjs` (Playwright/Edge như các bộ kiểm tra bên dưới). Đối chiếu kích thước với bản trước, cuộn hai chiều, nhập, hoàn tác/làm lại, lưu nháp/tải lại, đặt lại code, thay đổi màn hình và chạy C++ thật. Kết quả ở `../_KiemTra_KhungCode_20261030/`.
+
 Học bằng họ tên và lớp, không đăng nhập. Tiến độ lưu trên trình duyệt của từng học sinh (khoá riêng `cpp-8-v3`, không lẫn với bản v2).
 
 Mỗi bài là một Đảo C++ gồm Chặng 1, Chặng 2 và Checkpoint. Trước mỗi trạm có một trò chơi ngắn rút từ 10 trò. Mỗi chặng có 6 tab: Bối cảnh → Đoán rồi chạy → Kiểm chứng → Ghi nhớ → Luyện tập → Phản tư.
