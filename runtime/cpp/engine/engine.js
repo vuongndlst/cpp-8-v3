@@ -1066,9 +1066,10 @@ function bindChallenge(c) {
   const card = $(`[data-card="${c.id}"]`);
   if (!card) return;
 
+  const practiceFeedback = window.CppPracticeFeedback?.supports(c.id);
   const hints = c.hints || (c.hint ? [c.hint] : []);
   let shown = 0;
-  $('[data-act="hint"]', card)?.addEventListener("click", e => {
+  if (!practiceFeedback) $('[data-act="hint"]', card)?.addEventListener("click", e => {
     if (shown >= hints.length) return;
     $("[data-hints]", card).insertAdjacentHTML("beforeend", `<div class="hint-item"><strong>Gợi ý ${shown + 1}:</strong> ${esc(hints[shown])}</div>`);
     shown++;
@@ -1138,6 +1139,20 @@ function bindChallenge(c) {
   if (c.type === "code") {
     const ed = $(".code-editor", card), gut = $(".gutter", card), out = $(".console-output", card);
     const terminal = CppTerminal.mount(out);
+    const practice = practiceFeedback ? window.CppPracticeFeedback.mount({
+      card, editor: ed, taskId: c.id, fingerprint: hashText,
+      getRecord: () => state?.ifPracticeV1?.[c.id],
+      saveRecord(record) {
+        state.ifPracticeV1 = { ...state.ifPracticeV1, [c.id]: record };
+        save();
+      },
+      canUse: () => Boolean(state && !cppBusy && CppCloud.allowed() && card.isConnected && !card.closest("[hidden]")),
+      next() {
+        const button = $('[data-flow="next"]');
+        if (button && !button.hidden && !button.disabled) button.click();
+      }
+    }) : null;
+    if (practice) $('[data-act="hint"]', card)?.addEventListener("click", () => practice.hint());
     const lock = () => {
       const buttons = [...card.querySelectorAll("button")].filter(b => !b.closest(".interactive-console"));
       const previous = buttons.map(b => b.disabled), readOnly = ed.readOnly;
@@ -1153,7 +1168,7 @@ function bindChallenge(c) {
       updateBugs(c, card, ed.value);
     };
     sync();
-    ed.addEventListener("input", () => { state.drafts[c.id] = ed.value; save(); sync(); result(card, "info", "Mã đã thay đổi. Bấm Kiểm tra test case để chấm lại."); });
+    ed.addEventListener("input", () => { state.drafts[c.id] = ed.value; save(); sync(); practice?.edited(); result(card, "info", "Mã đã thay đổi. Bấm Kiểm tra test case để chấm lại."); });
     guardTyping(ed);
     // Chèn chữ bằng insertText để Ctrl+Z (hoàn tác) vẫn dùng được; xoá trước `back` ký tự nếu cần.
     const put = (text, back = 0) => {
@@ -1185,6 +1200,7 @@ function bindChallenge(c) {
     });
     $('[data-act="reset-code"]', card).addEventListener("click", () => {
       ed.value = c.starter; state.drafts[c.id] = c.starter; save(); sync();
+      practice?.edited();
       terminal.reset("Đã trả về code ban đầu.");
     });
     $('[data-act="run"]', card).addEventListener("click", async () => {
@@ -1199,14 +1215,16 @@ function bindChallenge(c) {
         }
       } finally {cppBusy=false;unlock();}
     });
-    $(' [data-act="check"]'.trim(), card).addEventListener("click", async ev => {
+    $('[data-act="check"]', card).addEventListener("click", async () => {
       if(cppBusy||!CppCloud.allowed()||lockedByBoss())return;cppBusy=true;const unlock=lock();
       try {
       attempt(c.id);
-      const v = await checkCode(c, ed.value);
+      const code = ed.value;
+      const v = await checkCode(c, code, Boolean(practice));
       if(!state||!CppCloud.allowed()||!card.isConnected||card.closest("[hidden]")||lockedByBoss())return;
       showRun(out, v.run);
       if (v.ok) pass(c, card, v.msg, card.querySelector('[data-act="check"]')); else miss(card, v.msg);
+      practice?.checked(code, v);
       }finally{cppBusy=false;unlock();}
     });
   }
@@ -1565,28 +1583,29 @@ function firstDiff(actual, expected) {
   return "";
 }
 
-async function checkCode(c, code) {
+async function checkCode(c, code, practiceFeedback = false) {
   const tests = c.tests || [{ input: "", expected: c.expected }];
   if (!tests.length || tests.some(t => t.expected == null)) {
     const msg = "Nhiệm vụ chưa có đủ test case để chấm. Hãy báo giáo viên.";
-    return { ok: false, run: { ok: false, output: "", error: msg }, msg };
+    return { ok: false, run: { ok: false, output: "", error: msg }, failure: { kind: "configuration" }, msg };
   }
   let lastRun = null;
   for (const [n, t] of tests.entries()) {
     const r = await runCpp(code, t.input || "");
     lastRun = r;
-    if (!r.ok) return { ok: false, run: r, input: t.input, msg: "Code chưa chạy được. Bạn đọc dòng ⚠ LỖI trong ô MÀN HÌNH rồi sửa nhé (bí quá thì mở 🧰 Bảng lỗi)." };
+    if (!r.ok) return { ok: false, run: r, input: t.input, failure: { kind: "run" }, msg: "Code chưa chạy được. Bạn đọc dòng ⚠ LỖI trong ô MÀN HÌNH rồi sửa nhé (bí quá thì mở 🧰 Bảng lỗi)." };
     if (t.expected != null) {
       const a = normalizeOutput(r.output), e = normalizeOutput(t.expected);
       if (a !== e) {
         const where = tests.length > 1 ? `Test case ${n + 1} (nhập ${t.input || "không"}) chưa đúng.\n` : "";
-        const hint = ifHint(code);
-        return { ok: false, run: r, input: t.input, msg: where + (firstDiff(a, e) || "Màn hình chưa khớp mẫu.") + (hint ? "\n👉 " + hint : "") };
+        const hint = practiceFeedback ? "" : ifHint(code);
+        return { ok: false, run: r, input: t.input, failure: { kind: "output", input: t.input, actual: a },
+          msg: where + (firstDiff(a, e) || "Màn hình chưa khớp mẫu.") + (hint ? "\n👉 " + hint : "") };
       }
     }
   }
   for (const rule of c.rules || []) {
-    if (!rule.test(code, lastRun.output)) return { ok: false, run: lastRun, msg: rule.msg };
+    if (!rule.test(code, lastRun.output)) return { ok: false, run: lastRun, failure: { kind: "rule" }, msg: rule.msg };
   }
   if (c.bugs && !c.bugs.every(b => b.fixed(code))) {
     return { ok: false, run: lastRun, msg: "Màn hình đúng rồi, nhưng vẫn còn bọ trốn trong code! Xem con 🐛 nào chưa nổ nhé." };

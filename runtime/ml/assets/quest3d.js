@@ -794,7 +794,7 @@ window.__questDesign = {theme:THEME,seed:B.bai,platform:STYLE.segments,station:S
 function moKhung(src, tieu_de) {
   khungMo = true; khungTieuDe.textContent = tieu_de;
   moLucQua = qua();
-  const u=new URL(src,location.href),q=new URLSearchParams(location.search);u.searchParams.set('class',q.get('class'));u.searchParams.set('lesson',q.get('lesson'));u.searchParams.set('profile',q.get('profile'));u.searchParams.set('personal',q.get('personal')||'0');u.searchParams.set('mode','read');u.searchParams.set('v',window.PORTAL_RUNTIME_VERSION);if(q.get('guest')==='1')u.searchParams.set('guest','1');iframe.src=u.href; khung.classList.add("hien");
+  const u=new URL(src,location.href),q=new URLSearchParams(location.search);u.searchParams.set('class',q.get('class'));u.searchParams.set('lesson',q.get('lesson'));u.searchParams.set('profile',q.get('profile'));u.searchParams.set('personal',q.get('personal')||'0');u.searchParams.set('mode','read');u.searchParams.set('v',window.PORTAL_RUNTIME_VERSION);if(q.get('guest')==='1')u.searchParams.set('guest','1');if(q.get('lesson')==='bai03'&&q.get('phanhoi')==='1')u.searchParams.set('phanhoi','1');iframe.src=u.href; khung.classList.add("hien");
   SFX.mo(); nhacNho(true); if (AM.u) AM.u.gain.value = 0;
   PHIM.clear(); CAN.hoat = false;
   setTimeout(() => khungDong.focus(), 50);
