@@ -1638,7 +1638,11 @@ async function checkCode(c, code, practiceFeedback = false) {
   for (const [n, t] of tests.entries()) {
     const r = await runCpp(code, t.input || "");
     lastRun = r;
-    if (!r.ok) return { ok: false, run: r, input: t.input, failure: { kind: "run" }, msg: "Code chưa chạy được. Bạn đọc dòng ⚠ LỖI trong ô MÀN HÌNH rồi sửa nhé (bí quá thì mở 🧰 Bảng lỗi)." };
+    if (!r.ok) {
+      const unavailable = /Chưa tải được trình chạy|Đang chạy mã khác|Đã dừng chương trình|Chương trình quá thời gian chạy/.test(r.error || "");
+      return { ok: false, run: r, input: t.input, failure: { kind: unavailable ? "unavailable" : "run" },
+        msg: unavailable ? "Lượt chạy chưa hoàn tất. Bấm Kiểm tra test case để thử lại." : "Code chưa chạy được. Bạn đọc dòng ⚠ LỖI trong ô MÀN HÌNH rồi sửa nhé (bí quá thì mở 🧰 Bảng lỗi)." };
+    }
     if (t.expected != null) {
       const a = normalizeOutput(r.output), e = normalizeOutput(t.expected);
       if (a !== e) {
