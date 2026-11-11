@@ -20,9 +20,13 @@
  base(kind+'/lesson/');const upper=kind==='python'?'PY':'CPP';window[upper+'_LESSON_KEY']=p.lesson.lesson_key;window[upper==='PY'?'PY10_CLOUD_CONFIG':'CPP8_CLOUD_CONFIG']={...PORTAL_CONFIG,runId:p.run_id};window[kind==='python'?'PyCloud':'CppCloud']=C;window[upper+'Account']={student:account,controls:()=>{},profile:()=>parent.postMessage({type:'portal-account'},location.origin)};
  if(kind==='python')css('python/engine/style.css');else{for(const f of ['base.css','game.css','school.css','syntax.css','primm.css'])css('cpp/engine/'+f);await script('cpp/engine/syntax.js');await script('cpp/engine/scratchblocks.min.js');await script('cpp/engine/scratchblocks-vi.js')}
  await script(kind+'/engine/kit.js');const payload=document.createElement('script');payload.textContent=p.payload.source;document.head.append(payload);payload.remove();window.LESSON.media=p.payload.media;document.body.innerHTML='';await script(kind+'/engine/media.js');if(kind==='cpp'){await script('cpp/engine/progress.js');await script('cpp/engine/input-rules.js');await script('cpp/engine/cpp-runner.js');await script('cpp/engine/terminal.js');await script('cpp/engine/boss3d.js');
-   if(p.lesson.lesson_key==='bai03'&&new URLSearchParams(location.search).get('phanhoi')==='1'){
+   if(p.lesson.lesson_key==='bai03'){
      css('cpp/engine/practice-feedback.css');
-     await script('cpp/engine/practice-feedback.js').catch(error=>console.warn('Không tải được phần luyện tập bổ sung.',error));
+     await script('cpp/engine/answer-feedback.js').catch(error=>console.warn('Không tải được phần phản hồi bổ sung.',error));
+     if(new URLSearchParams(location.search).get('phanhoi')==='1'){
+       window.CPP_WORKSHOP_FEEDBACK ||= 'https://cpp8-workshop-feedback.ndvuongsp.chatgpt.site/feedback';
+       await script('cpp/engine/practice-feedback.js').catch(error=>console.warn('Không tải được phần luyện tập bổ sung.',error));
+     }
    }
  }await script(kind+'/engine/engine.js');
  }else if(kind==='ml'){

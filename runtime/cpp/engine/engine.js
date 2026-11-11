@@ -1062,9 +1062,45 @@ function result(card, type, msg, extraHtml = "") {
   el.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
+function reviewLearningTask(taskId, returnId) {
+  const step = activeStep();
+  const targetIndex = step.flow?.findIndex(section => section.tasks?.includes(taskId));
+  if (targetIndex == null || targetIndex < 0 || targetIndex > flowReach(step)) return;
+  const task = step.challenges.find(item => item.id === taskId);
+  if (task?.after && !state.passed[task.after]) return;
+  flowTab(step, targetIndex);
+  const card = $(`[data-card="${taskId}"]`);
+  if (!card) return;
+  const section = card.closest(".flow-screen");
+  if (card.dataset.dc && section) {
+    section.dataset.lap = String($$(".challenge-card[data-dc]", section).indexOf(card));
+    flowRefresh(step);
+  }
+  card.scrollIntoView({ block: "start", behavior: "smooth" });
+  $$("[data-feedback-return]").forEach(button => button.remove());
+  if (returnId) {
+    const button = document.createElement("button");
+    button.type = "button"; button.className = "secondary-button"; button.dataset.feedbackReturn = "1";
+    button.textContent = "Quay lại câu vừa làm";
+    button.addEventListener("click", () => reviewLearningTask(returnId));
+    $(".challenge-content", card).append(button);
+  }
+}
+
+function answerFeedback(c, card, evidence) {
+  const feedback = window.CppAnswerFeedback;
+  if (!feedback?.supports(c.id)) return;
+  feedback.render({ task: c, card, evidence, record: state.ifAnswerV1?.[c.id],
+    save(record) { state.ifAnswerV1 = { ...state.ifAnswerV1, [c.id]: record }; save(); }, review: reviewLearningTask });
+}
+
 function bindChallenge(c) {
   const card = $(`[data-card="${c.id}"]`);
   if (!card) return;
+  if (window.CppAnswerFeedback?.supports(c.id)) {
+    card.addEventListener("change", () => card.querySelector(".cpp-answer-feedback")?.remove());
+    card.addEventListener("input", () => card.querySelector(".cpp-answer-feedback")?.remove());
+  }
 
   const practiceFeedback = window.CppPracticeFeedback?.supports(c.id);
   const hints = c.hints || (c.hint ? [c.hint] : []);
@@ -1107,6 +1143,7 @@ function bindChallenge(c) {
         let msg = picked.why || "Chưa đúng. Đọc lại phần giải thích phía trên rồi thử lại.";
         if (starNow) { state.xp = Math.max(0, state.xp - STAR_LOSS); msg += ` ⭐ Ngôi sao chưa thành công: −${STAR_LOSS} XP.`; }
         miss(card, msg);
+        answerFeedback(c, card, { ok: false, selected: picked.text });
       }
     });
   }
@@ -1242,7 +1279,11 @@ function bindChallenge(c) {
       const wrong = c.items.filter((it, i) => pick[i] !== it.answer);
       $$(".tf-row", card).forEach(row => { const ok = pick[row.dataset.i] === c.items[row.dataset.i].answer; row.classList.toggle("ok", ok); row.classList.toggle("no", !ok); });
       if (!wrong.length) pass(c, card, c.why || "Đúng hết rồi!", ev.currentTarget);
-      else miss(card, `Còn ${wrong.length} câu chưa đúng (tô đỏ). ${wrong[0].why || ""}`);
+      else {
+        const adaptive = window.CppAnswerFeedback?.supports(c.id);
+        miss(card, adaptive ? `Còn ${wrong.length} ý cần xem lại (tô đỏ).` : `Còn ${wrong.length} câu chưa đúng (tô đỏ). ${wrong[0].why || ""}`);
+        answerFeedback(c, card, { ok: false, wrong: c.items.flatMap((item, index) => pick[index] === item.answer ? [] : [{ index, selected: pick[index] }]) });
+      }
     });
   }
 
@@ -1262,7 +1303,11 @@ function bindChallenge(c) {
         f.classList.toggle("ok", ok); f.classList.toggle("no", !ok); return !ok;
       });
       if (!bad.length) pass(c, card, c.why || "Điền đúng hết!", ev.currentTarget);
-      else miss(card, `Còn ${bad.length} chỗ chưa đúng (tô đỏ). ${c.blanks[Number(bad[0].dataset.b)].why || ""}`);
+      else {
+        const adaptive = window.CppAnswerFeedback?.supports(c.id);
+        miss(card, adaptive ? `Còn ${bad.length} chỗ cần xem lại (tô đỏ).` : `Còn ${bad.length} chỗ chưa đúng (tô đỏ). ${c.blanks[Number(bad[0].dataset.b)].why || ""}`);
+        answerFeedback(c, card, { ok: false, wrong: bad.map(field => ({ index: Number(field.dataset.b), value: field.value.trim() })) });
+      }
     });
   }
 
@@ -1623,6 +1668,7 @@ function nextOpenCard(card) {
 
 function pass(c, card, msg, btn, starNow = false) {
   if(!state||!CppCloud.allowed()||lockedByBoss())return;
+  answerFeedback(c, card, { ok: true });
   const first = !state.passed[c.id];
   let extra = "";
   if (first) {

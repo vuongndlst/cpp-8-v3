@@ -13,6 +13,8 @@ const host = "127.0.0.1";
 const model = "gemini-3.5-flash-lite";
 const port = Number(process.env.CPP_WORKSHOP_PORT || 8765);
 const origin = `http://${host}:${port}`;
+const apiOnly = process.env.CPP_WORKSHOP_API_ONLY === "1";
+const lessonOrigin = "https://vuongndlst.github.io";
 const mime = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json",
   ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
@@ -202,10 +204,20 @@ async function main() {
 
   const server = http.createServer(async (req, res) => {
     try {
-      if (req.headers.host !== `${host}:${port}` || (req.headers.origin && req.headers.origin !== origin)) {
+      const allowedOrigin = apiOnly ? lessonOrigin : origin;
+      if (req.headers.host !== `${host}:${port}` || (req.headers.origin && req.headers.origin !== allowedOrigin)) {
         throw new HttpError(403, "Mở bản demo bằng đường dẫn trên máy giáo viên.");
       }
       const url = new URL(req.url, origin);
+      if (apiOnly) {
+        res.setHeader("Access-Control-Allow-Origin", lessonOrigin);
+        res.setHeader("Vary", "Origin");
+        if (url.pathname !== "/_workshop/feedback") throw new HttpError(404, "Không tìm thấy yêu cầu.");
+        if (req.method === "OPTIONS") {
+          res.writeHead(204, { "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" });
+          return res.end();
+        }
+      }
       if (url.pathname === "/_workshop/feedback") {
         if (req.method !== "POST") throw new HttpError(405, "Yêu cầu phải dùng POST.");
         const context = requestContext(await readJson(req), examples);
