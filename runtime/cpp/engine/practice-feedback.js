@@ -132,6 +132,8 @@
     panel.hidden = true;
     card.querySelector("[data-result]").after(panel);
 
+    const workshopEndpoint = window.CPP_WORKSHOP_FEEDBACK;
+    let checkedExample, liveAnswer, liveRequest;
     const current = () => fingerprint(editor.value);
     const focusCode = () => {
       editor.focus({ preventScroll: true });
@@ -150,6 +152,52 @@
       node.addEventListener("click", () => { if (canUse()) action(); });
       return node;
     };
+
+    function workshopFeedback() {
+      const example = checkedExample;
+      if (!workshopEndpoint || !example || example.code !== editor.value) return;
+      const block = add(panel, "div", "");
+      block.className = "cpp-workshop-feedback";
+      const status = add(block, "p", "");
+      status.setAttribute("role", "status");
+      const show = answer => {
+        const label = document.createElement("strong");
+        label.textContent = "Phản hồi Gemini";
+        block.prepend(label);
+        status.textContent = `${answer.line ? `Dòng ${answer.line}. ` : ""}${answer.observation}`;
+        add(block, "p", answer.nextStep);
+      };
+      if (liveAnswer?.example === example) { show(liveAnswer.answer); return; }
+
+      const ask = button(block, "Hỏi Gemini về code này", async () => {
+        const request = new AbortController();
+        liveRequest = request;
+        ask.disabled = true;
+        status.textContent = "Gemini đang xem bản code vừa chấm…";
+        try {
+          const response = await fetch(workshopEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId, ...example }),
+            signal: request.signal
+          });
+          const payload = await response.json();
+          if (!block.isConnected || request.signal.aborted || editor.value !== example.code || !canUse()) return;
+          if (!response.ok) {
+            status.textContent = payload.message || "Gemini chưa trả lời. Bạn có thể dùng gợi ý ở trên.";
+            return;
+          }
+          liveAnswer = { example, answer: payload };
+          ask.remove();
+          show(payload);
+        } catch {
+          if (!request.signal.aborted && block.isConnected) status.textContent = "Không kết nối được Gemini. Bạn có thể dùng gợi ý ở trên.";
+        } finally {
+          if (liveRequest === request) liveRequest = null;
+          ask.disabled = false;
+        }
+      });
+    }
 
     function exercise(question, saveAnswer) {
       const group = add(panel, "fieldset", "");
@@ -181,6 +229,7 @@
     }
 
     function render({ introductory = false, moveFocus = false } = {}) {
+      liveRequest?.abort();
       const record = getRecord() || {};
       const matches = record.snapshot === current();
       const topic = matches ? topics[record.kind] : null;
@@ -210,6 +259,7 @@
             });
           }
         }
+        workshopFeedback();
       } else if (passed) {
         if (!record.verified) {
           add(panel, "p", record.usedHint
@@ -234,10 +284,21 @@
     function checked(code, verdict) {
       const previous = getRecord() || {};
       const snapshot = current();
+      const topic = verdict.failure ? diagnose(taskId, code, verdict.failure) : null;
+      if (workshopEndpoint) {
+        const kind = verdict.failure?.kind;
+        checkedExample = ["run", "output", "rule"].includes(kind) ? {
+          code, kind, topic,
+          input: String(verdict.input || ""),
+          actual: String(verdict.failure.actual || verdict.run?.output || "").slice(0, 600),
+          error: String(verdict.run?.error || "").slice(0, 500)
+        } : null;
+        liveAnswer = null;
+      }
       if (verdict.ok) {
         saveRecord({ ...previous, snapshot, kind: null, result: "pass" });
       } else if (verdict.failure) {
-        const kind = diagnose(taskId, code, verdict.failure);
+        const kind = topic;
         const sameKind = Boolean(kind) && previous.kind === kind;
         const sample = fingerprint(code.trim().replace(/\s+/g, " "));
         saveRecord({ ...previous, snapshot, sample, kind, result: "fail", usedHint: previous.usedHint || Boolean(kind),
@@ -249,7 +310,11 @@
 
     render();
     return {
-      checked, edited: () => render(),
+      checked,
+      edited() {
+        if (checkedExample?.code !== editor.value) { checkedExample = null; liveAnswer = null; }
+        render();
+      },
       hint() {
         if (!canUse()) return;
         const previous = getRecord() || {};

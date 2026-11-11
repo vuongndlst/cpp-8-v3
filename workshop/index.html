@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo phản hồi C++ với Gemini</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f5f2fb; color: #282241; font: 1rem/1.55 system-ui, sans-serif; }
+    main { width: min(100% - 32px, 740px); margin: clamp(28px, 8vh, 82px) auto; }
+    header { margin-bottom: 26px; }
+    h1 { margin: 0; font-size: clamp(2rem, 6vw, 3.1rem); line-height: 1.08; }
+    h2 { margin: 0 0 7px; font-size: 1.2rem; }
+    .workshop { margin-bottom: 8px; color: #5b3d9a; font-weight: 700; }
+    .samples { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 255px), 1fr)); gap: 16px; }
+    article { display: flex; flex-direction: column; align-items: flex-start; padding: 20px; border: 1px solid #d5cbe9; border-radius: 14px; background: white; }
+    article p { flex: 1; margin: 0 0 16px; }
+    button { padding: 10px 17px; min-height: 44px; border: 0; border-radius: 8px; background: #5640a5; color: white; cursor: pointer; font: inherit; font-weight: 700; }
+    button:focus-visible { outline: 3px solid #8f66df; outline-offset: 3px; }
+    .note { color: #534765; }
+    #notice:empty { display: none; }
+  </style>
+  <script src="/runtime/config.js" defer></script>
+  <script src="/shared/store.js" defer></script>
+  <script src="/_workshop/launcher.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="workshop">Workshop giáo viên · Bài 3 C++</p>
+      <h1>Thử phản hồi theo bài làm với Gemini</h1>
+      <p>Chọn một tình huống. Bấm <strong>Kiểm tra test case</strong>, rồi bấm <strong>Hỏi Gemini về code này</strong>. Thầy cô có thể sửa code và thử lại để so sánh phản hồi.</p>
+    </header>
+    <section class="samples" aria-label="Tình huống mẫu">
+      <article>
+        <h2>Tặng topping từ 3 ly</h2>
+        <p>Code mẫu bỏ sót khách mua đúng 3 ly.</p>
+        <button type="button" data-example="0">Mở bài tặng topping</button>
+      </article>
+      <article>
+        <h2>Miễn phí giao hàng</h2>
+        <p>Code mẫu tính phí cho đơn đúng 100 000 đồng.</p>
+        <button type="button" data-example="1">Mở bài phí giao hàng</button>
+      </article>
+    </section>
+    <p class="note">Mỗi lần mở một tình huống, demo nạp lại code mẫu. Chỉ dùng code giả lập trong workshop.</p>
+    <p id="notice" role="alert"></p>
+  </main>
+  <script type="application/json" id="examples"><!--WORKSHOP_EXAMPLES--></script>
+</body>
+</html>

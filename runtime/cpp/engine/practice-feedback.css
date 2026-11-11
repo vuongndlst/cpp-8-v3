@@ -18,3 +18,5 @@
 .cpp-practice-feedback legend { max-width: 100%; padding: 0 4px; font-weight: 700; }
 .cpp-practice-feedback label { display: flex; gap: 8px; align-items: center; min-height: 44px; cursor: pointer; }
 .cpp-practice-feedback input { flex: none; margin: 0; accent-color: #6550ad; }
+.cpp-workshop-feedback { margin-top: 10px; padding-top: 6px; border-top: 1px solid #cbbdef; }
+.cpp-workshop-feedback p:empty { display: none; }
